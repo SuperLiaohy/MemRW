@@ -1,0 +1,79 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-385bb2a7108060a5a44c.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.5"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "MemRW",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "MemRW::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-MemRW-Debug-1962656da785476477e9.json",
+					"name" : "MemRW",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "MemRW_autogen::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-MemRW_autogen-Debug-d24a1e89e12e3b14111f.json",
+					"name" : "MemRW_autogen",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "MemRW_autogen_timestamp_deps::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-MemRW_autogen_timestamp_deps-Debug-72245442290ddbb69ba2.json",
+					"name" : "MemRW_autogen_timestamp_deps",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/liaohy/User/Code/QtCreator/MemRW/build/Desktop-Debug",
+		"source" : "/home/liaohy/User/Code/QtCreator/MemRW"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 6
+	}
+}

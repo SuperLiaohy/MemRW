@@ -1,0 +1,10 @@
+# ninja log v5
+1	41	0	/home/liaohy/User/Code/QtCreator/MemRW/build/Desktop-Debug/CMakeFiles/cmake.verify_globs	a29a8047cdab53d0
+41	176	1754574322886083130	MemRW_autogen/timestamp	ae90968417c32014
+41	176	1754574322886083130	MemRW_autogen/mocs_compilation.cpp	ae90968417c32014
+41	176	1754574322886083130	/home/liaohy/User/Code/QtCreator/MemRW/build/Desktop-Debug/MemRW_autogen/timestamp	ae90968417c32014
+41	176	1754574322886083130	/home/liaohy/User/Code/QtCreator/MemRW/build/Desktop-Debug/MemRW_autogen/mocs_compilation.cpp	ae90968417c32014
+176	830	1754574323540410212	CMakeFiles/MemRW.dir/MemRW_autogen/mocs_compilation.cpp.o	2bcf09da1c85f4b1
+177	898	1754574323607443720	CMakeFiles/MemRW.dir/main.cpp.o	5438d1d47645cc05
+177	901	1754574323611445721	CMakeFiles/MemRW.dir/mainwindow.cpp.o	7826ec78d0cf4a09
+901	1088	1754574323799539745	MemRW	df389a1c95a589fa
