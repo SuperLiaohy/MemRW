@@ -7,8 +7,10 @@
 #include "tag_utils.h"
 
 #include <iostream>
+#include <memory>
 
 #include "dw_utils.h"
+#include "VariTree.h"
 
 
 int get_type_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *type_die) {
@@ -111,6 +113,60 @@ int display_full_type(Dwarf_Debug dbg, Dwarf_Die die) {
     }
     dwarf_dealloc_die(type_die);
     return res;
+}
+
+int recursion_type_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)>& func) {
+    Dwarf_Die type_die = nullptr;
+    int res = 0;
+
+    res = get_type_die(dbg, die, &type_die);
+    if (res != DW_DLV_OK) {return res;}
+
+    Dwarf_Half tag = 0;
+    std::tie(res, tag) = get_die_tag(dbg, type_die);
+    if (res != DW_DLV_OK) {dwarf_dealloc_die(type_die);return res;}
+    std::cout << "type tag: " << trans_dw_tag(tag) << std::endl;
+    switch (tag) {
+        case DW_TAG_typedef:
+            recursion_type_do(dbg, type_die, func);
+            break;
+        case DW_TAG_inheritance:    // maybe unused
+        case DW_TAG_class_type:
+        case DW_TAG_structure_type:
+            root_recursion_die_do(dbg, type_die, func, [](Dwarf_Debug dbg, Dwarf_Die die) ->bool {
+                int res = 0; Dwarf_Half tag = 0;
+                std::tie(res, tag)=get_die_tag(dbg,die);
+                if (res!=DW_DLV_OK) {return false;}
+                display_die_tag(dbg,die);
+                if (tag==DW_TAG_member||tag==DW_TAG_inheritance) {return true;}
+                return false;
+            });
+            break;
+        case DW_TAG_union_type:
+            break;
+        case DW_TAG_array_type: {
+
+            // recursion_type_do(dbg, type_die, func);
+        }   break;
+        case DW_TAG_pointer_type:
+            break;
+        case DW_TAG_base_type: {
+            std::string type;
+            std::tie(res, type) = get_die_name(dbg, type_die);
+            if (res == DW_DLV_OK)
+                std::cout << "type: " << type << std::endl;
+            else
+                std::cout << "type: error base type" << std::endl;
+        }
+            break;
+        default:
+            std::cout << "unknown type die tag: " << trans_dw_tag(tag) << std::endl;
+            break;
+    }
+    dwarf_dealloc_die(type_die);
+    return res;
+
+
 }
 
 int display_tag_name(Dwarf_Debug dbg, Dwarf_Die cur_die) {

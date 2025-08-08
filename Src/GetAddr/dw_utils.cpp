@@ -148,4 +148,59 @@ int root_recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<vo
     return res;
 }
 
+int recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)> &func,
+    const std::function<bool(Dwarf_Debug, Dwarf_Die)> &valid) {
+    int res=0;
+    Dwarf_Error error=nullptr;
+    Dwarf_Die cur_die = die, sib_die = nullptr, child_die = nullptr;
+    bool is_valid = valid(dbg, cur_die);
+    if (is_valid) {
+        func(dbg, cur_die);
+    }
+    while (true) {
+        if (is_valid) {
+            res = dw_error_check(dwarf_child(cur_die, &child_die, &error), dbg, error);
+            if (res == DW_DLV_OK) {
+                recursion_die_do(dbg, child_die, func);
+                dwarf_dealloc_die(child_die);
+            }
+        }
+
+        res = dw_error_check(dwarf_siblingof_c(cur_die, &sib_die, &error), dbg, error);
+        if (cur_die != die) {
+            dwarf_dealloc_die(cur_die);
+        }
+        if (res == DW_DLV_ERROR) {
+            printf("occur error!\n");
+            break;
+        }
+        if (res == DW_DLV_NO_ENTRY) {
+            break;
+        }
+
+        cur_die = sib_die;
+
+        is_valid = valid(dbg, cur_die);
+        if (is_valid) {
+            func(dbg, cur_die);
+        }
+    }
+    return res;
+}
+
+int root_recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)> &func,
+                          const std::function<bool(Dwarf_Debug, Dwarf_Die)> &valid) {
+    int res = 0;
+    Dwarf_Die child = nullptr;
+    Dwarf_Error error = nullptr;
+    res = dw_error_check(dwarf_child(die,&child, &error),dbg ,error);
+    if (res != DW_DLV_OK) {
+        std::cout << "no child" << std::endl;
+        return res;
+    }
+    res = recursion_die_do(dbg, child, func, valid);
+    dwarf_dealloc_die(child);
+    return res;
+}
+
 

@@ -23,7 +23,7 @@ int get_addr_task() {
     VariTree dwarf{std::make_shared<VariNode>("root","root",0)};
     Dwarf_Debug dbg = 0;
     //    const char *path = "./Air.axf";
-    const char *path = "/home/liaohy/User/Code/CLion/learn_libdwarf/armclang_engineer.axf";
+    const char *path = "/home/liaohy/User/Code/QtCreator/MemRW/Res/armclang_engineer.axf";
     char *true_path = 0;
     uint32_t true_pathlen = 0;
     Dwarf_Handler errhand = 0;
@@ -100,7 +100,55 @@ int get_addr_task() {
                         std::cout << "direct type: " << type << std::endl;
                         auto child_node = std::make_shared<VariNode>(std::string(name), std::string(type), addr);
                         cu_node->add_child(child_node);
-                        display_full_type(dbg, die);
+
+                        // if (type.find('[')==std::string::npos)
+                        //     cu_node->add_child(child_node);
+                        // else {
+                        //     cu_node->add_child(child_node);
+                        // }
+
+                        auto generate_func = [](std::shared_ptr<VariNode> node, auto&& self) -> std::function<void(Dwarf_Debug dbg, Dwarf_Die die)> {
+                            return [node,self](Dwarf_Debug dbg, Dwarf_Die die) {
+                                std::string die_name;
+                                int res = 0; std::string type;
+                                Dwarf_Half tag = 0;
+                                std::tie(res, tag) = get_die_tag(dbg, die);
+                                if (res!=DW_DLV_OK) {return;}
+                                switch (tag) {
+                                    case DW_TAG_member: {
+                                        std::tie(res, die_name) = get_die_name(dbg, die);
+                                        if (res == DW_DLV_OK) {std::cout << "member name: " << die_name << std::endl;}
+
+                                        Dwarf_Attribute attr = nullptr; Dwarf_Error error = nullptr;
+                                        Dwarf_Unsigned location = 0;
+                                        res = dw_error_check(dwarf_attr(die, DW_AT_data_member_location, &attr, &error), dbg, error);
+                                        if (res == DW_DLV_OK) {
+                                            res = dw_error_check(dwarf_formudata(attr, &location, &error), dbg, error);
+                                            dwarf_dealloc_attribute(attr);
+                                            if (res == DW_DLV_OK)
+                                                std::cout << "member location: " << location << std::endl;
+                                        }
+
+                                        std::tie(res, type) = get_die_type(dbg, die);
+                                        if (res != DW_DLV_OK) {
+                                            std::cout << "error: no direct type!\t";
+                                        } else
+                                            std::cout << "direct type: " << type << std::endl;
+
+                                        auto child = std::make_shared<VariNode>(std::string(die_name),std::string(type),location);
+                                        node->add_child_with_offset(child);
+                                        recursion_type_do(dbg,die,self(child,self));
+                                    }   break;
+                                    case DW_TAG_inheritance:{
+                                        recursion_type_do(dbg,die,self(node,self));
+                                    }   break;
+                                    default:
+                                        display_die_tag(dbg,die);
+                                }
+                            };
+                        };
+
+                        recursion_type_do(dbg, die, generate_func(child_node, generate_func));
 
                     });
                 }
