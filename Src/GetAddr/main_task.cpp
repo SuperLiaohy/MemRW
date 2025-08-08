@@ -96,10 +96,12 @@ int get_addr_task() {
                         std::cout << "var name: " << name << std::endl;
                         std::cout << "opcode: " << opcode << "\taddr: " << std::hex <<  addr << std::dec << std::endl;
                         std::tie(res, type) = get_die_type(dbg, die);
-                        if (res == DW_DLV_OK) {
-                            std::cout << "direct type: " << type << std::endl;
-                            cu_node->add_child(std::make_shared<VariNode>(std::string(name), std::string(type), addr));
-                        }
+                        if (res != DW_DLV_OK) {return;}
+                        std::cout << "direct type: " << type << std::endl;
+                        auto child_node = std::make_shared<VariNode>(std::string(name), std::string(type), addr);
+                        cu_node->add_child(child_node);
+                        display_full_type(dbg, die);
+
                     });
                 }
             } else {

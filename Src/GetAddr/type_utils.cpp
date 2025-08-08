@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include "dw_utils.h"
+
 
 int get_type_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *type_die) {
     Dwarf_Attribute attr = nullptr;
@@ -38,18 +40,7 @@ int display_full_type(Dwarf_Debug dbg, Dwarf_Die die) {
     int res = 0;
     res = get_type_die(dbg, die, &type_die);
     if (res != DW_DLV_OK) {
-        if (type_die != nullptr) {
-            dwarf_dealloc_die(type_die);
-        }
         return res;
-    }
-
-    std::string type_name;
-    std::cout << "type: ";
-    std::tie(res, type_name) = get_die_name(dbg, type_die);
-    if (res == DW_DLV_OK) {
-        std::cout << type_name <<std::endl;
-
     }
 
     Dwarf_Half tag = 0;
@@ -58,37 +49,54 @@ int display_full_type(Dwarf_Debug dbg, Dwarf_Die die) {
         dwarf_dealloc_die(type_die);
         return res;
     }
-
     std::cout << "type tag: " << trans_dw_tag(tag) << std::endl;
+
     switch (tag) {
-        case DW_TAG_typedef: {
+        case DW_TAG_typedef:
             display_full_type(dbg, type_die);
-        }
             break;
-        case DW_TAG_inheritance:
+        case DW_TAG_inheritance:    // maybe unused
         case DW_TAG_class_type:
         case DW_TAG_structure_type: {
-            Dwarf_Die child = nullptr;
-            res = dw_error_check(dwarf_child(type_die,&child, &error),dbg ,error);
-            if (res != DW_DLV_OK) {
-                if (child!=nullptr) {
-                    dwarf_dealloc_die(child);
+            root_recursion_die_do(dbg, type_die, [](Dwarf_Debug dbg, Dwarf_Die die) {
+                std::string die_name;
+                int res = 0; std::string type;
+
+                std::tie(res, die_name) = get_die_name(dbg, die);
+                if (res == DW_DLV_OK) {
+                    std::cout << "member name: " << die_name << std::endl;
                 }
-                dwarf_dealloc_die(type_die);
-                std::cout << "no child" << std::endl;
-                return res;
-            }
-            display_recursion_die_type(dbg, child);
-            dwarf_dealloc_die(child);
+
+                Dwarf_Attribute attr = nullptr;Dwarf_Error error = nullptr;
+                res = dw_error_check(dwarf_attr(die, DW_AT_data_member_location, &attr, &error), dbg, error);
+                if (res != DW_DLV_OK) {return;}
+                Dwarf_Unsigned location = 0;
+                res = dw_error_check(dwarf_formudata(attr,&location,&error), dbg,error);
+                dwarf_dealloc_attribute(attr);
+                if (res != DW_DLV_OK) {return;}
+                std::cout << "member location: " << location << std::endl;
+
+                std::tie(res, type) = get_die_type(dbg, die);
+                if (res != DW_DLV_OK) {
+                    std::cout << "error: no direct type!\t";
+
+                    display_die_tag(dbg,die);
+                    return;
+                }
+                std::cout << "direct type: " << type << std::endl;
+                display_full_type(dbg,die);
+            });
         }
             break;
         case DW_TAG_union_type:
             break;
         case DW_TAG_array_type:
             break;
+        case DW_TAG_pointer_type:
+            break;
         case DW_TAG_base_type: {
             std::string type;
-            std::tie(res, type) = get_die_name(dbg, die);
+            std::tie(res, type) = get_die_name(dbg, type_die);
             if (res == DW_DLV_OK)
                 std::cout << "type: " << type << std::endl;
             else

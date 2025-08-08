@@ -51,8 +51,12 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
     int res = 0;
     Dwarf_Die type_die = nullptr;
     res = get_type_die(dbg, die, &type_die);
-    if (res != DW_DLV_OK) {
+    if (res == DW_DLV_ERROR) {
         return std::tuple{res, std::string()};
+    } else if (res == DW_DLV_NO_ENTRY) {
+        if (std::tuple{DW_DLV_OK,DW_TAG_pointer_type}==get_die_tag(dbg,die)) {
+            return std::tuple{DW_DLV_OK, std::string("void")};
+        }
     }
 
     std::string name;
@@ -64,7 +68,6 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
         if (is_tag != DW_DLV_OK) {
             return std::tuple{res, std::string()};
         }
-        // std::cout << "type tag: " << trans_dw_tag(tag) << std::endl;
         switch (tag) {
             case DW_TAG_union_type:
                 dwarf_dealloc_die(type_die);
@@ -76,42 +79,41 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
                 dwarf_dealloc_die(type_die);
                 return std::tuple{DW_DLV_OK, "anonymous class"};
             case DW_TAG_const_type:
-                display_single_die(dbg,type_die);
+                // display_single_die(dbg,type_die);
                 std::tie(res, name) = get_die_type(dbg, type_die);
-                name = "const " + name;
+                if (name.find('*')==std::string::npos)
+                    name = "const " + name;
+                else
+                    name = name + " const";
                 break;
             case DW_TAG_volatile_type:
-                display_single_die(dbg,type_die);
+                // display_single_die(dbg,type_die);
                 std::tie(res, name) = get_die_type(dbg, type_die);
-                name = "volatile " + name;
+                if (name.find('*')==std::string::npos)
+                    name = "volatile " + name;
+                else
+                    name = name + " volatile";
                 break;
             case DW_TAG_pointer_type: {
-                display_single_die(dbg,type_die);
+                // display_single_die(dbg,type_die);
                 std::tie(res, name) = get_die_type(dbg, type_die);
-                auto pos = name.find(' ');
-                if (pos == std::string::npos) {
-                    name = name + " *";
-                } else {
-                    std::string left = name.substr(0, pos);
-                    std::string right = name.substr(pos + 1);
-                    name = right + " * " + right;
-                }
+                name = name + " *";
             }
                 break;
             case DW_TAG_array_type:
-                display_single_die(dbg,type_die);
+                // display_single_die(dbg,type_die);
                 std::tie(res, name) = get_die_type(dbg, type_die);
                 root_recursion_die_do(dbg, type_die, [&name](Dwarf_Debug dbg, Dwarf_Die die) {
                     int res = 0;
                     Dwarf_Error error = nullptr;
-                    std::string type_name;
+                    // std::string type_name;
                     Dwarf_Half tag = 0;
                     std::tie(res, tag) = get_die_tag(dbg, die);
                     if (tag == DW_TAG_subrange_type) {
-                        std::tie(res, type_name) = get_die_type(dbg, die);
-                        if (res == DW_DLV_OK) {
-                            std::cout << "type:" << type_name << std::endl;
-                        }
+                        // std::tie(res, type_name) = get_die_type(dbg, die);
+                        // if (res == DW_DLV_OK) {
+                            // std::cout << "type:" << type_name << std::endl;
+                        // }
                         Dwarf_Attribute attr = nullptr;
                         res = dw_error_check(dwarf_attr(die,DW_AT_count,&attr,&error),dbg,error);
                         if (res != DW_DLV_OK) {return;}
