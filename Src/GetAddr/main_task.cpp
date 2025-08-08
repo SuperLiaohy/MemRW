@@ -139,8 +139,18 @@ int get_addr_task() {
                                         node->add_child_with_offset(child);
                                         recursion_type_do(dbg,die,self(child,self));
                                     }   break;
-                                    case DW_TAG_inheritance:{
+                                    case DW_TAG_inheritance: {
                                         recursion_type_do(dbg,die,self(node,self));
+                                    }   break;
+                                    case DW_TAG_array_type: {
+                                        uint32_t size = 0;
+                                        uint32_t count = get_array_count(dbg, die);
+                                        std::tie(res, size) = get_recursion_type_size(dbg, die);
+                                        node->add_child_array(count, size);
+                                        for (int i = 0; i < count; ++i) {
+                                            recursion_type_do(dbg,die,self(node->node[i],self));
+                                        }
+
                                     }   break;
                                     default:
                                         display_die_tag(dbg,die);

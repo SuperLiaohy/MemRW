@@ -29,16 +29,14 @@ public:
         node.push_back(child);
     }
 
-    void add_children(uint32_t number, uint32_t size, std::string name, std::string type ,const uint64_t addr) {
-        auto p = std::make_shared<VariNode>(std::move(name),std::move(type), addr);
-        node.push_back(p);
+    void add_child_array(uint32_t number, uint32_t size) {
+        this->node.resize(number);
+        auto pos = type.rfind('[') - 1;
+        std::string basic_type = type.substr(0,pos);
         for (int i = 0; i < number; ++i) {
-            p->add_child_with_offset(std::move(name),std::move(type), size*number);
+            auto p = std::make_shared<VariNode>(std::move("["+std::to_string(i)+"]"),basic_type, this->addr + size*i);
+            node[i] = p;
         }
-    }
-
-    void add_children(uint32_t number, const std::shared_ptr<VariNode>& child) {
-        node.push_back(child);
     }
 
     void add_child_with_offset(std::string name, std::string type , uint64_t addr) {
@@ -51,15 +49,6 @@ public:
         node.push_back(child);
     }
 
-    void add_children_with_offset(uint32_t number, std::string name, std::string type , uint64_t addr) {
-        addr += this->addr;
-        node.push_back(std::make_shared<VariNode>(std::move(name),std::move(type), addr));
-    }
-
-    void add_children_with_offset(uint32_t number, const std::shared_ptr<VariNode>& child) {
-        child->addr += this->addr;
-        node.push_back(child);
-    }
 };
 
 class VariTree {

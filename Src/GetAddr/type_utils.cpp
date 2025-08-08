@@ -13,6 +13,94 @@
 #include "VariTree.h"
 
 
+
+uint32_t get_array_count(Dwarf_Debug dbg, Dwarf_Die die) {
+    Dwarf_Unsigned count = 0;
+    root_recursion_die_do(dbg, die, [&count](Dwarf_Debug dbg, Dwarf_Die die) {
+        int res = 0;
+        Dwarf_Error error = nullptr;
+        Dwarf_Half tag = 0;
+        std::tie(res, tag) = get_die_tag(dbg, die);
+        if (tag == DW_TAG_subrange_type) {
+            Dwarf_Attribute attr = nullptr;
+            res = dw_error_check(dwarf_attr(die,DW_AT_count,&attr,&error),dbg,error);
+            if (res != DW_DLV_OK) {return;}
+            res = dw_error_check(dwarf_formudata(attr,&count,&error),dbg,error);
+            dwarf_dealloc_attribute(attr);
+            if (res != DW_DLV_OK) {return;}
+        }
+    }, [](Dwarf_Debug dbg, Dwarf_Die die) -> bool {
+        int res = 0;
+        Dwarf_Half tag = 0;
+        std::tie(res, tag) = get_die_tag(dbg, die);
+        if (res!=DW_DLV_OK) return false;
+        if (tag==DW_TAG_subrange_type) return true;
+        return false;
+    });
+    return count;
+}
+
+std::tuple<int, uint32_t> get_type_size(Dwarf_Debug dbg, Dwarf_Die die) {
+    int res = 0;
+    Dwarf_Unsigned byte_size = 0;
+    Dwarf_Attribute attr = nullptr;
+    Dwarf_Error error = nullptr;
+    res = dw_error_check(dwarf_attr(die, DW_AT_byte_size,&attr,&error),dbg,error);
+    if (res == DW_DLV_OK) {
+        res = dw_error_check(dwarf_formudata(attr,&byte_size,&error),dbg,error);
+    }
+    if (attr != nullptr)
+        dwarf_dealloc_attribute(attr);
+    return std::tuple{res,byte_size};
+}
+
+
+std::tuple<int, uint32_t> get_recursion_type_size(Dwarf_Debug dbg, Dwarf_Die die) {
+    Dwarf_Die type_die = nullptr;
+    int res = 0;
+
+    res = get_type_die(dbg, die, &type_die);
+    if (res != DW_DLV_OK) {return std::tuple{res, 0};}
+
+    Dwarf_Half tag = 0;
+    std::tie(res, tag) = get_die_tag(dbg, type_die);
+    if (res != DW_DLV_OK) {dwarf_dealloc_die(type_die);return std::tuple{res,0}; }
+    std::cout << "type tag: " << trans_dw_tag(tag) << std::endl;
+    switch (tag) {
+        case DW_TAG_typedef:
+            return get_recursion_type_size(dbg, type_die);
+            break;
+        case DW_TAG_class_type:
+        case DW_TAG_structure_type:
+            return get_type_size(dbg,type_die);
+            break;
+        case DW_TAG_union_type:
+            break;
+        case DW_TAG_array_type: {
+            uint32_t count = get_array_count(dbg, type_die);
+            uint32_t len = 0;
+            std::tie(res, len) = get_recursion_type_size(dbg, type_die);
+            len = len * count;
+            return {res,len};
+        }   break;
+        case DW_TAG_pointer_type:
+            return {DW_DLV_OK, 4};
+            break;
+        case DW_TAG_base_type:
+            return get_type_size(dbg, type_die);
+            break;
+        default:
+            std::cout << "unknown type die tag: " << trans_dw_tag(tag) << std::endl;
+            break;
+    }
+    dwarf_dealloc_die(type_die);
+    return {DW_DLV_ERROR,0};
+}
+
+
+
+
+
 int get_type_die(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *type_die) {
     Dwarf_Attribute attr = nullptr;
     Dwarf_Error error = nullptr;
@@ -145,17 +233,19 @@ int recursion_type_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(D
         case DW_TAG_union_type:
             break;
         case DW_TAG_array_type: {
-
-            // recursion_type_do(dbg, type_die, func);
+            func(dbg,type_die);
         }   break;
         case DW_TAG_pointer_type:
             break;
         case DW_TAG_base_type: {
             std::string type;
             std::tie(res, type) = get_die_name(dbg, type_die);
-            if (res == DW_DLV_OK)
+            if (res == DW_DLV_OK) {
                 std::cout << "type: " << type << std::endl;
-            else
+                uint32_t size = 0;
+                std::tie(res, size) = get_type_size(dbg, type_die);
+                std::cout << "type size: " << size << std::endl;
+            } else
                 std::cout << "type: error base type" << std::endl;
         }
             break;
