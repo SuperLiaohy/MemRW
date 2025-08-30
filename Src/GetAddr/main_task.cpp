@@ -11,7 +11,8 @@ std::shared_ptr<VariTree> get_addr_task() {
     VariTree dwarf{std::make_shared<VariNode>("root","root",0)};
     Dwarf_Debug dbg = 0;
     //    const char *path = "./Air.axf";
-    const char *path = "/home/liaohy/User/Code/QtCreator/MemRW/Res/armclang_engineer.axf";
+    // const char *path = "/home/liaohy/User/Code/QtCreator/MemRW/Res/armclang_engineer.axf";
+    const char *path = "/home/liaohy/User/Code/Stm32CubeMX/CLionDemo/build/CLionDemo.elf";
     char *true_path = 0;
     uint32_t true_pathlen = 0;
     Dwarf_Handler errhand = 0;
@@ -83,6 +84,10 @@ std::shared_ptr<VariTree> get_addr_task() {
                         std::cout << "--------------------" << std::endl;
                         std::cout << "var name: " << name << std::endl;
                         std::cout << "opcode: " << opcode << "\taddr: " << std::hex <<  addr << std::dec << std::endl;
+                        if (name.find("c_a")!=std::string::npos) {
+                            std::cout << "canPlus" << std::endl;
+                        }
+
                         std::tie(res, type) = get_die_type(dbg, die);
                         if (res != DW_DLV_OK) {return;}
                         std::cout << "direct type: " << type << std::endl;

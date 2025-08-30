@@ -24,7 +24,20 @@ uint32_t get_array_count(Dwarf_Debug dbg, Dwarf_Die die) {
         if (tag == DW_TAG_subrange_type) {
             Dwarf_Attribute attr = nullptr;
             res = dw_error_check(dwarf_attr(die,DW_AT_count,&attr,&error),dbg,error);
-            if (res != DW_DLV_OK) {return;}
+            if (res != DW_DLV_OK) {
+                error = nullptr;
+                res = dw_error_check(dwarf_attr(die, DW_AT_upper_bound, &attr, &error), dbg, error);
+                if (res != DW_DLV_OK) {
+                    res = dw_error_check(dwarf_attr(die, DW_AT_lower_bound, &attr, &error), dbg, error);
+                }
+                res = dw_error_check(dwarf_formudata(attr, &count, &error), dbg, error);
+                if (res == DW_DLV_OK) {
+                    ++count;
+                    std::cout << "count:" << count << std::endl;
+                }
+                dwarf_dealloc_attribute(attr);
+                return;
+            }
             res = dw_error_check(dwarf_formudata(attr,&count,&error),dbg,error);
             dwarf_dealloc_attribute(attr);
             if (res != DW_DLV_OK) {return;}
@@ -227,6 +240,7 @@ int recursion_type_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(D
                 if (res!=DW_DLV_OK) {return false;}
                 display_die_tag(dbg,die);
                 if (tag==DW_TAG_member||tag==DW_TAG_inheritance) {return true;}
+                if (tag==DW_TAG_subprogram) {display_die_name(dbg,die);}
                 return false;
             });
             break;

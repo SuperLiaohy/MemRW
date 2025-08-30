@@ -71,13 +71,13 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
         switch (tag) {
             case DW_TAG_union_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "anonymous union"};
+                return std::tuple{DW_DLV_OK, "<anonymous union>"};
             case DW_TAG_structure_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "anonymous struct"};
+                return std::tuple{DW_DLV_OK, "<anonymous struct>"};
             case DW_TAG_class_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "anonymous class"};
+                return std::tuple{DW_DLV_OK, "<anonymous class>"};
             case DW_TAG_const_type:
                 // display_single_die(dbg,type_die);
                 std::tie(res, name) = get_die_type(dbg, type_die);
@@ -106,17 +106,30 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
                 root_recursion_die_do(dbg, type_die, [&name](Dwarf_Debug dbg, Dwarf_Die die) {
                     int res = 0;
                     Dwarf_Error error = nullptr;
-                    // std::string type_name;
+                    std::string type_name;
                     Dwarf_Half tag = 0;
                     std::tie(res, tag) = get_die_tag(dbg, die);
                     if (tag == DW_TAG_subrange_type) {
-                        // std::tie(res, type_name) = get_die_type(dbg, die);
-                        // if (res == DW_DLV_OK) {
-                            // std::cout << "type:" << type_name << std::endl;
-                        // }
+                        std::tie(res, type_name) = get_die_type(dbg, die);
+                        if (res == DW_DLV_OK) {
+                            std::cout << "type:" << type_name << std::endl;
+                        }
                         Dwarf_Attribute attr = nullptr;
                         res = dw_error_check(dwarf_attr(die,DW_AT_count,&attr,&error),dbg,error);
-                        if (res != DW_DLV_OK) {return;}
+                        if (res != DW_DLV_OK) {
+                            error = nullptr;
+                            Dwarf_Unsigned count = 0;
+                            res = dw_error_check(dwarf_attr(die, DW_AT_upper_bound, &attr, &error), dbg, error);
+                            if (res != DW_DLV_OK) {res = dw_error_check(dwarf_attr(die, DW_AT_lower_bound, &attr, &error), dbg, error);}
+                            res = dw_error_check(dwarf_formudata(attr, &count, &error), dbg, error);
+                            if (res == DW_DLV_OK) {
+                                ++count;
+                                std::cout << "count:" << count << std::endl;
+                                name = name + " [" + std::to_string(count) + "]";
+                            }
+                            dwarf_dealloc_attribute(attr);
+                            return;
+                        }
                         Dwarf_Unsigned count = 0;
                         res = dw_error_check(dwarf_formudata(attr,&count,&error),dbg,error);
                         dwarf_dealloc_attribute(attr);
@@ -136,6 +149,26 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
         dwarf_dealloc_die(type_die);
         return std::tuple{res, name};
     }
+
+    Dwarf_Half tag;
+    std::tie(res, tag) = get_die_tag(dbg,type_die);
+    std::string recursion_name;
+    switch (tag) {
+        case DW_TAG_typedef:
+             std::tie(res, recursion_name) = get_die_type(dbg, type_die);
+            dwarf_dealloc_die(type_die);
+            if (recursion_name.find("<anonymous")!=std::string::npos) {break;}
+            return std::tuple{res, recursion_name};
+        default:
+            break;
+    }
+
+    // if (name == "uint32_t") {
+    //     int res = 0; Dwarf_Half tag = 0;
+    //     std::tie(res, tag) = get_die_tag(dbg,type_die);
+    //     std::cout << "tag: " << trans_dw_tag(tag) << std::endl;
+    // }
+
     dwarf_dealloc_die(type_die);
     return std::tuple{res, name};
 }
