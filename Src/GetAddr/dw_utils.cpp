@@ -61,12 +61,24 @@ int display_single_die(Dwarf_Debug dbg, Dwarf_Die die) {
             res = dw_error_check(dwarf_whatattr(attr_list[i], &symbol, &error),dbg, error);
             if (res==DW_DLV_OK) {
                 std::cout << " \tsymbol:" << trans_dw_attr_num(symbol);
+                Dwarf_Unsigned num=0;
+                switch (form) {
+                    case DW_FORM_data1:
+                        res = dw_error_check(dwarf_formudata(attr_list[i],&num,&error),dbg,error);
+                        if (res==DW_DLV_OK)
+                            std::cout << "\tnum: " << num << std::endl;
+                        else
+                            std::cout << "\tnum: no num!" << std::endl;
+                        break;
+                    default:
+                        res = dw_error_check(dwarf_formstring(attr_list[i], &dw_str, &error),dbg,error);
+                        if (res==DW_DLV_OK)
+                            std::cout << "\ttext: " << dw_str << std::endl;
+                        else
+                            std::cout << "\ttext: no text!" << std::endl;
+                        break;
+                }
 
-                res = dw_error_check(dwarf_formstring(attr_list[i], &dw_str, &error),dbg,error);
-                if (res==DW_DLV_OK)
-                    std::cout << "\ttext: " << dw_str << std::endl;
-                else
-                    std::cout << "\ttext: no text!" << std::endl;
 
             }
             dwarf_dealloc_attribute(attr_list[i]);

@@ -233,14 +233,28 @@ int recursion_type_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(D
             break;
         case DW_TAG_inheritance:    // maybe unused
         case DW_TAG_class_type:
-        case DW_TAG_structure_type:
+        case DW_TAG_structure_type: {
+            std::string name;
+            std::tie(res, name) = get_die_name(dbg, type_die);
+            if ( name == "SuperCan") {
+                std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
+                display_single_die(dbg,type_die);
+                std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
+                root_recursion_die_do(dbg, type_die, [](Dwarf_Debug dbg, Dwarf_Die die) {
+                    display_single_die(dbg,die);
+                    display_die_type(dbg,die);
+                });
+                std::cout << "--------------------------------------------------------------------------------------------------" << std::endl;
+
+            }
+        }
             root_recursion_die_do(dbg, type_die, func, [](Dwarf_Debug dbg, Dwarf_Die die) ->bool {
                 int res = 0; Dwarf_Half tag = 0;
                 std::tie(res, tag)=get_die_tag(dbg,die);
                 if (res!=DW_DLV_OK) {return false;}
                 display_die_tag(dbg,die);
                 if (tag==DW_TAG_member||tag==DW_TAG_inheritance) {return true;}
-                if (tag==DW_TAG_subprogram) {display_die_name(dbg,die);}
+                // if (tag==DW_TAG_subprogram) {display_die_name(dbg,die);}
                 return false;
             });
             break;
