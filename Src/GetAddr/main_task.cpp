@@ -7,19 +7,7 @@
 #include "dw_utils.h"
 #include "VariTree.h"
 
-void dw_print_err(Dwarf_Error error, Dwarf_Ptr ptr) {
-    printf("ERROR Exit on %lx due to error 0x%lx %s\n",
-           reinterpret_cast<uint64_t>(ptr),
-           static_cast<uint64_t>(dwarf_errno(error)),
-           dwarf_errmsg(error));
-    exit(1);
-}
-
-void display_dw_error(Dwarf_Error error);
-
-
-
-int get_addr_task() {
+std::shared_ptr<VariTree> get_addr_task() {
     VariTree dwarf{std::make_shared<VariNode>("root","root",0)};
     Dwarf_Debug dbg = 0;
     //    const char *path = "./Air.axf";
@@ -162,6 +150,9 @@ int get_addr_task() {
 
                     });
                 }
+                if (cu_node->node.empty()) {
+                    dwarf.root->node.pop_back();
+                }
             } else {
                 std::cout << "--------------------------------------" << std::endl;
                 recursion_die_do(dbg, cu_die,display_single_vari_die);
@@ -179,5 +170,5 @@ int get_addr_task() {
     dwarf_finish(dbg);
 
     std::cout << "Hello, World!" << std::endl;
-    return 0;
+    return std::make_shared<VariTree>(dwarf);
 }

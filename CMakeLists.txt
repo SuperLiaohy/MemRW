@@ -9,13 +9,16 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools)
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
 
 set(TS_FILES MemRW_zh_CN.ts)
 
 file(GLOB GET_ADDR_SRC
-        "Src/GetAddr/*.cpp")
+        "Src/GetAddr/*.cpp" "Inc/GetAddr/*.h")
+
+file(GLOB TREE_MODEL_SRC
+        "Src/TreeModel/*.cpp" "Inc/TreeModel/*.h")
 
 set(PROJECT_SOURCES
         main.cpp
@@ -25,6 +28,7 @@ set(PROJECT_SOURCES
         ${TS_FILES}
 
         ${GET_ADDR_SRC}
+        ${TREE_MODEL_SRC}
 
 )
 
@@ -58,7 +62,8 @@ endif()
 target_link_libraries(MemRW PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 target_include_directories(MemRW PRIVATE
-        "Inc/GetAddr")
+        "Inc/GetAddr"
+        "Inc/TreeModel")
 find_package(libdwarf CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libdwarf::dwarf)
 

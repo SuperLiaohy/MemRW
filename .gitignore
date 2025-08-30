@@ -73,6 +73,7 @@ CMakeLists.txt.user*
 *.exe
 
 # Clion
-build/clion
+#build/clion
+build
 
 .idea
