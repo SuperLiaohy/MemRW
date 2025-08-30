@@ -29,6 +29,9 @@ set(PROJECT_SOURCES
 
         ${GET_ADDR_SRC}
         ${TREE_MODEL_SRC}
+        groupitemadddialog.cpp
+        groupitemadddialog.h
+        groupitemadddialog.ui
 
 )
 

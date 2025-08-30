@@ -22,6 +22,11 @@ public:
 public slots:
     void on_openBtn_clicked();
     void on_reloadBtn_clicked();
+    void on_actioncreate_group_triggered();
+    void on_actiondelete_group_triggered();
+
+    void on_dwarf_treeView_doubleClicked(const QModelIndex &index);
+    void customGroupMenuRequested(const QPoint& pos);
 private:
     TreeModel* model = nullptr;
 
