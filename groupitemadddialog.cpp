@@ -8,6 +8,7 @@
 #include "ui_groupitemadddialog.h"
 #include <QColorDialog>
 #include <QTreeWidget>
+#include <QMessageBox>
 
 #include "TreeItem.h"
 
@@ -26,6 +27,16 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
 
     ui->typeBox->addItems({"uint8_t","uint16_t","uint32_t","uint64_t","int8_t","int16_t","int32_t","int64_t", "float","double", item->data(1).toString()});
     ui->typeBox->setCurrentIndex(10);
+
+    connect(ui->buttonBox,&QDialogButtonBox::accepted,this,[this]() {
+        if (ui->colorLabel->text()=="wait for selection") {
+            int reply = QMessageBox::critical(this, tr("MESSAGE"), tr("you should first select a color before accepting"), QMessageBox::Retry,
+                                              QMessageBox::Abort);
+            if (reply == QMessageBox::Retry) {return;}
+            if (reply == QMessageBox::Abort) {this->reject();return;}
+        }
+        this->accept();
+    });
 }
 
 GroupItemAddDialog::~GroupItemAddDialog() {
@@ -70,4 +81,32 @@ void GroupItemAddDialog::on_typeBox_currentIndexChanged(int index) {
             break;
     }
     ui->sizeEdit->setText(QString::number(size));
+}
+
+void GroupItemAddDialog::on_groupBox_currentIndexChanged(int index) {
+    group = treeWidget->topLevelItem(index);
+}
+
+QString GroupItemAddDialog::itemName() {
+    return ui->nameEdit->text();
+}
+
+QString GroupItemAddDialog::itemAddr() {
+    return ui->addrEdit->text();
+}
+
+QString GroupItemAddDialog::itemType() {
+    return ui->typeBox->currentText();
+}
+
+QString GroupItemAddDialog::itemSize() {
+    return ui->sizeEdit->text();
+}
+
+QColor GroupItemAddDialog::itemColor() {
+    return ui->colorLabel->text();
+}
+
+QTreeWidgetItem* GroupItemAddDialog::itemGroup() {
+    return group;
 }

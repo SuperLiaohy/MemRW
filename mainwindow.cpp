@@ -4,6 +4,7 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QMessageBox>
+#include <QColorDialog>
 #include <QDebug>
 
 #include "TreeModel.h"
@@ -18,13 +19,14 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->dwarfDock->setWindowTitle("variables");
     ui->fileEdit->setReadOnly(true);
 
+    ui->groupDock->setWindowTitle("groups");
     ui->group_treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->group_treeWidget, &QTreeWidget::customContextMenuRequested, this, &MainWindow::customGroupMenuRequested);
     ui->group_treeWidget->setColumnCount(5);
     ui->group_treeWidget->setHeaderLabels({"name","type","address","size","color"});
-
 
     ui->tableTab->hide();
 
@@ -101,10 +103,31 @@ void MainWindow::on_actiondelete_group_triggered() {
 void MainWindow::on_dwarf_treeView_doubleClicked(const QModelIndex &index) {
     auto item = static_cast<TreeItem *>(index.internalPointer());
     if(item->childCount()!=0) {return;}
+    if (ui->group_treeWidget->topLevelItemCount() == 0) {
+        QMessageBox::critical(this,"MESSAGE","You have to have at least one group.",QMessageBox::Close);
+        return;
+    }
     GroupItemAddDialog* dlg = new GroupItemAddDialog(ui->group_treeWidget, item,this);
     if(dlg->exec()==QDialog::Accepted) {
-
+        auto group = dlg->itemGroup();
+        auto newItem = new QTreeWidgetItem();
+        newItem->setText(0, dlg->itemName());
+        newItem->setText(1, dlg->itemType());
+        newItem->setText(2, dlg->itemAddr());
+        newItem->setText(3, dlg->itemSize());
+        newItem->setText(4, dlg->itemColor().name());
+        newItem->setData(4, Qt::BackgroundRole, dlg->itemColor());
+        group->addChild(newItem);
     };
+}
+
+void MainWindow::on_group_treeWidget_doubleClicked(const QModelIndex &index) {
+    if (index.parent()==QModelIndex()) {return;}
+    if(index.column()!=4) {return;}
+    auto item = static_cast<QTreeWidgetItem*>(ui->group_treeWidget->currentIndex().internalPointer());
+    QColor color = QColorDialog::getColor(item->text(4), this, "select color");
+    item->setText(4, color.name());
+    item->setData(4, Qt::BackgroundRole, color);
 
 }
 

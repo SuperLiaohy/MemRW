@@ -25,11 +25,6 @@
         <string>Tab 1</string>
        </attribute>
       </widget>
-      <widget class="QWidget" name="tab_2">
-       <attribute name="title">
-        <string>Tab 2</string>
-       </attribute>
-      </widget>
      </widget>
     </item>
     <item row="1" column="0">

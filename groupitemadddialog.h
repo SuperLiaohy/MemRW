@@ -6,6 +6,7 @@
 #define MEMRW_GROUPITEMADDDIALOG_H
 
 #include <QDialog>
+#include <qtreewidget.h>
 
 class QTreeWidget;
 class TreeItem;
@@ -28,16 +29,18 @@ public:
 public slots:
     void on_colorBtn_clicked();
     void on_typeBox_currentIndexChanged(int index);
+    void on_groupBox_currentIndexChanged(int index);
 public:
     QString itemName();
     QString itemAddr();
     QString itemType();
     QString itemSize();
     QColor itemColor();
-    QString itemGroup();
+    QTreeWidgetItem* itemGroup();
 private:
     QTreeWidget* treeWidget;
     TreeItem* item;
+    QTreeWidgetItem* group;
 
 private:
     Ui::GroupItemAddDialog *ui;
