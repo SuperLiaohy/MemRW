@@ -107,6 +107,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionconnect"/>
+   <addaction name="separator"/>
    <addaction name="actionadd_chart_tab"/>
    <addaction name="actionadd_table_tab"/>
   </widget>
@@ -138,6 +140,16 @@
   <action name="actionadd_table_tab">
    <property name="text">
     <string>add table tab</string>
+   </property>
+  </action>
+  <action name="actionconnect">
+   <property name="text">
+    <string>connect</string>
+   </property>
+  </action>
+  <action name="actiondelete_item">
+   <property name="text">
+    <string>delete item</string>
    </property>
   </action>
  </widget>

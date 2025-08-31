@@ -17,6 +17,9 @@ set(TS_FILES MemRW_zh_CN.ts)
 file(GLOB GET_ADDR_SRC
         "Src/GetAddr/*.cpp" "Inc/GetAddr/*.h")
 
+file(GLOB CMSIS_DAP_SRC
+        "Src/CMSIS_DAP/*.cpp" "Inc/CMSIS_DAP/*.h")
+
 file(GLOB QTOVERRIDE_SRC
     "Src/QtOverride/*.ui" "Src/QtOverride/*.cpp" "Inc/QtOverride/*.h")
 
@@ -31,6 +34,7 @@ set(PROJECT_SOURCES
 
         ${GET_ADDR_SRC}
         ${QTOVERRIDE_SRC}
+        ${CMSIS_DAP_SRC}
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -64,9 +68,19 @@ target_link_libraries(MemRW PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 target_include_directories(MemRW PRIVATE
         "Inc/GetAddr"
-        "Inc/QtOverride")
+        "Inc/QtOverride"
+        "Inc/CMSIS_DAP")
+
 find_package(libdwarf CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libdwarf::dwarf)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
+target_include_directories(${PROJECT_NAME} PRIVATE ${LIBUSB_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBUSB_LIBRARIES})
+target_compile_options(${PROJECT_NAME} PRIVATE ${LIBUSB_CFLAGS_OTHER})
+message(STATUS libusb-- "${LIBUSB_INCLUDE_DIRS}")
+
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Charts)
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt${QT_VERSION_MAJOR}::Charts)
 
