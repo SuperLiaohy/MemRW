@@ -4,7 +4,7 @@
 
 // You may need to build the project (run Qt uic code generator) to get "ui_GroupItemAddDialog.h" resolved
 
-#include "groupitemadddialog.h"
+#include "../../groupitemadddialog.h"
 #include "ui_groupitemadddialog.h"
 #include <QColorDialog>
 #include <QTreeWidget>
