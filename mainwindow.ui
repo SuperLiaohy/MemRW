@@ -15,20 +15,15 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
-     <widget class="QTabWidget" name="chartTab">
-      <property name="currentIndex">
-       <number>0</number>
-      </property>
-      <widget class="QWidget" name="tab">
-       <attribute name="title">
-        <string>Tab 1</string>
-       </attribute>
-      </widget>
-     </widget>
-    </item>
     <item row="1" column="0">
      <widget class="QTabWidget" name="tableTab">
+      <property name="currentIndex">
+       <number>-1</number>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QTabWidget" name="chartTab">
       <property name="currentIndex">
        <number>-1</number>
       </property>
@@ -45,6 +40,14 @@
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menudisplay">
+    <property name="title">
+     <string>display</string>
+    </property>
+    <addaction name="actiondisplay_variable_dock"/>
+    <addaction name="actiondisplay_group_dock"/>
+   </widget>
+   <addaction name="menudisplay"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QDockWidget" name="dwarfDock">
@@ -104,6 +107,8 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionadd_chart_tab"/>
+   <addaction name="actionadd_table_tab"/>
   </widget>
   <action name="actiondelete_group">
    <property name="text">
@@ -113,6 +118,26 @@
   <action name="actioncreate_group">
    <property name="text">
     <string>create group</string>
+   </property>
+  </action>
+  <action name="actiondisplay_group_dock">
+   <property name="text">
+    <string>display group dock</string>
+   </property>
+  </action>
+  <action name="actiondisplay_variable_dock">
+   <property name="text">
+    <string>display variable dock</string>
+   </property>
+  </action>
+  <action name="actionadd_chart_tab">
+   <property name="text">
+    <string>add chart tab</string>
+   </property>
+  </action>
+  <action name="actionadd_table_tab">
+   <property name="text">
+    <string>add table tab</string>
    </property>
   </action>
  </widget>

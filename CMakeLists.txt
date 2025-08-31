@@ -6,7 +6,7 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Widgets LinguistTools)
@@ -17,8 +17,8 @@ set(TS_FILES MemRW_zh_CN.ts)
 file(GLOB GET_ADDR_SRC
         "Src/GetAddr/*.cpp" "Inc/GetAddr/*.h")
 
-file(GLOB TREE_MODEL_SRC
-        "Src/TreeModel/*.cpp" "Inc/TreeModel/*.h")
+file(GLOB QTOVERRIDE_SRC
+    "Src/QtOverride/*.ui" "Src/QtOverride/*.cpp" "Inc/QtOverride/*.h")
 
 set(PROJECT_SOURCES
         main.cpp
@@ -27,12 +27,10 @@ set(PROJECT_SOURCES
         mainwindow.ui
         ${TS_FILES}
 
-        ${GET_ADDR_SRC}
-        ${TREE_MODEL_SRC}
-        groupitemadddialog.cpp
-        groupitemadddialog.h
-        groupitemadddialog.ui
+        RingBuffer.h
 
+        ${GET_ADDR_SRC}
+        ${QTOVERRIDE_SRC}
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -66,10 +64,11 @@ target_link_libraries(MemRW PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
 target_include_directories(MemRW PRIVATE
         "Inc/GetAddr"
-        "Inc/TreeModel")
+        "Inc/QtOverride")
 find_package(libdwarf CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libdwarf::dwarf)
-
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Charts)
+target_link_libraries(${PROJECT_NAME} PRIVATE Qt${QT_VERSION_MAJOR}::Charts)
 
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
