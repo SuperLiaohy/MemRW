@@ -42,6 +42,8 @@ MainWindow::MainWindow(QWidget *parent)
             else tabWidget->show();
         });
     };
+
+
     setupTab(ui->tableTab);
     setupTab(ui->chartTab);
     this->dumpObjectTree();
@@ -50,6 +52,8 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    if (this->raad_thread.joinable())
+        this->raad_thread.join();
     delete ui;
 }
 
@@ -123,16 +127,10 @@ void MainWindow::on_actiondisplay_variable_dock_triggered() {
 
 void MainWindow::on_actionadd_chart_tab_triggered() {
     if (ui->group_treeWidget->topLevelItemCount() == 0) {
-        QMessageBox::critical(this,"MESSAGE","You have to have at least one group.",QMessageBox::Close);
+        QMessageBox::critical(this, "MESSAGE", "You have to have at least one group.", QMessageBox::Close);
         return;
     }
-    AddChartTabDialog* dlg = new AddChartTabDialog(ui->group_treeWidget, this);
-    auto res = dlg->exec();
-    if (res == QDialog::Accepted) {
-        create_chart(dlg->chartGroup(), dlg->chartMode());
-    }
-
-
+    create_chart();
 }
 
 void MainWindow::on_actionadd_table_tab_triggered() {
@@ -143,6 +141,7 @@ void MainWindow::on_actionconnect_triggered() {
         if (link!=nullptr) {
             link.reset();
             ui->actionconnect->setText("connect");
+            ui->actionconnect->setIcon(QIcon(":/images/connect.png"));
             ui->statusbar->showMessage("DAPlink has been disconnected");
             return;
         }
@@ -151,6 +150,7 @@ void MainWindow::on_actionconnect_triggered() {
         link->auto_configure_ap();
         ui->statusbar->showMessage("DAPlink connection is successful");
         ui->actionconnect->setText("disconnect");
+        ui->actionconnect->setIcon(QIcon(":/images/disconnect.png"));
     } catch (const std::exception& e) {
         ui->statusbar->showMessage("DAPlink connection is failed");
         qDebug() << "catch error: " << e.what();
@@ -194,104 +194,155 @@ void MainWindow::customGroupMenuRequested(const QPoint &pos) {
 
 }
 
-void MainWindow::create_chart(QTreeWidgetItem *group, int mode) {
-    QChart *chart = new QChart();
-    chart->setTitle("test chart");
-    // chart->setAnimationOptions(QChart::SeriesAnimations);
+void MainWindow::create_chart() {
+    AddChartTabDialog* dlg = new AddChartTabDialog(ui->group_treeWidget, ui->chartTab, this);
+    auto res = dlg->exec();
+    if (res == QDialog::Accepted) {
+        auto group = dlg->chartGroup();
+        auto tabName = dlg->tabName();
+        QChart *chart = new QChart();
+        chart->setTitle("test chart");
+        // chart->setAnimationOptions(QChart::SeriesAnimations);
 
-    QValueAxis *axisX = new QValueAxis(chart);
-    axisX->setTitleText("time (ms)");
-    axisX->setRange(0, 5000);
-    QValueAxis *axisY = new QValueAxis(chart);
-    axisY->setTitleText("value");
-    axisY->setRange(0, 1000);
+        QValueAxis *axisX = new QValueAxis(chart);
+        axisX->setTitleText("time (ms)");
+        axisX->setRange(0, 5000);
+        QValueAxis *axisY = new QValueAxis(chart);
+        axisY->setTitleText("value");
+        axisY->setRange(0, 1000);
 
-    chart->addAxis(axisX, Qt::AlignBottom);
-    chart->addAxis(axisY, Qt::AlignLeft);
+        chart->addAxis(axisX, Qt::AlignBottom);
+        chart->addAxis(axisY, Qt::AlignLeft);
 
-    QList<QVariant> test;
+        QFrame *frame = new QFrame(this);
+        frame->setAttribute(Qt::WA_DeleteOnClose);
+        frame->setProperty("chart", tabName);
+
+        int tabIndex = ui->chartTab->addTab(frame, tabName);
+        ui->chartTab->setCurrentIndex(tabIndex);
+        ++groups[group->text(0)].used;
+        chartTabs.emplace(tabName,
+            chartTab{.state = chartTab::State::Stop, .group = group->text(0), .start_time = std::chrono::high_resolution_clock::now()});
+
+        // QList<QLineSeries *> series_list(group->childCount());
+        auto& series_list = chartTabs[tabName].series_list;
+        series_list.resize(group->childCount());
+        for (int count = 0; count < group->childCount(); ++count) {
+            chartTabs[tabName].addr.emplace_back(group->child(count)->data(2, Qt::DisplayRole).toString().toLongLong(nullptr, 16));
+            series_list[count] = new QLineSeries(chart);
+            series_list[count]->setName(group->child(count)->data(0, Qt::DisplayRole).toString());
+            series_list[count]->setProperty("color", QColor(group->child(count)->data(4, Qt::DisplayRole).toString()));
+            chart->addSeries(series_list[count]);
+            series_list[count]->attachAxis(axisX);
+            series_list[count]->attachAxis(axisY);
+        }
+
+        auto currentWidget = ui->chartTab->currentWidget();
+        chartTabs[tabName].timer = new QTimer(currentWidget);
+
+        QChartView *chartView = new QChartView(chart, currentWidget);
+        chartView->setChart(chart);
+        QChartView::RubberBands rubber;
+        rubber = QChartView::RectangleRubberBand;
+        chartView->setRubberBand(rubber);
+        chartView->setRenderHint(QPainter::Antialiasing);
+        QPushButton *startBtn = new QPushButton("Start", currentWidget);
+        QPushButton *stopBtn = new QPushButton("Stop", currentWidget);
+        QPushButton *reloadBtn = new QPushButton("Reload Chart", currentWidget);
+
+        QGridLayout *gridLayout = new QGridLayout(currentWidget);
+        currentWidget->setLayout(gridLayout);
+        gridLayout->addWidget(reloadBtn, 0, 2, 1, 1);
+        gridLayout->addWidget(startBtn, 0, 0, 1, 1);
+        gridLayout->addWidget(stopBtn, 0, 1, 1, 1);
+        gridLayout->addWidget(chartView, 1, 0, 1, 3);
+
+        chartTabs[tabName].timer->stop();
+        connect(startBtn, &QPushButton::clicked, currentWidget, [this,tabName,group,chart]() {
+            auto& series_list = chartTabs[tabName].series_list;
+            for (int count = 0; count < series_list.size(); ++count) {
+                chart->removeSeries(series_list[count]);
+            }
+            series_list.clear();
+            series_list.resize(group->childCount());
+            auto& addr_list = chartTabs[tabName].addr;
+            addr_list.clear();
+
+            for (int count = 0; count < group->childCount(); ++count) {
+                addr_list.emplace_back(
+                    group->child(count)->data(2, Qt::DisplayRole).toString().toLongLong(nullptr, 16));
+                series_list[count] = new QLineSeries(chart);
+                series_list[count]->setName(group->child(count)->data(0, Qt::DisplayRole).toString());
+                series_list[count]->setProperty(
+                    "color", QColor(group->child(count)->data(4, Qt::DisplayRole).toString()));
+                chart->addSeries(series_list[count]);
+                series_list[count]->attachAxis(chart->axisX());
+                series_list[count]->attachAxis(chart->axisY());
+            }
+            for (auto & ring_buffer : groups[chartTabs[tabName].group].ring_buffers) {
+                ring_buffer.reset();
+            }
+            chart->axisX()->setRange(0, 5000);
+            chartTabs[tabName].start_time = std::chrono::high_resolution_clock::now();
+            chartTabs[tabName].timer->start(30);
+            chartTabs[tabName].state = chartTab::State::Running;
+        });
+        connect(stopBtn, &QPushButton::clicked, currentWidget, [this,tabName]() {
+            chartTabs[tabName].timer->stop();
+            chartTabs[tabName].state = chartTab::State::Stop;
+        });
+
+        raad_thread = std::thread([this,tabName]() {
+            // auto group_name = chartTabs[tabName].group;
+            while (true) {
+                switch (chartTabs[tabName].state) {
+                    case chartTab::State::Stop:
+                        continue;
+                    case chartTab::State::Running:
+                        break;
+                    case chartTab::State::Closed:
+                        chartTabs.erase(tabName);
+                        return;
+                }
+                for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
+                    auto &ringbuffer = groups[chartTabs[tabName].group].ring_buffers[count];
+                    auto data = link->read_mem(chartTabs[tabName].addr[count]);
+                    auto time = std::chrono::duration_cast<std::chrono::microseconds>(
+                                    (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()
+                                / 1000.f;
+                    auto point = QPointF(time, data);
+                    ringbuffer.write_data_force(&point, 1);
+                }
+                // std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
 
 
-    QList<QLineSeries *> series_list(group->childCount());
-    for (int count = 0; count < group->childCount(); ++count) {
-        series_list[count] = new QLineSeries(chart);
-        series_list[count]->setName(group->child(count)->data(0, Qt::DisplayRole).toString());
-        series_list[count]->setProperty("color", QColor(group->child(count)->data(4, Qt::DisplayRole).toString()));
-        chart->addSeries(series_list[count]);
-        series_list[count]->attachAxis(axisX);
-        series_list[count]->attachAxis(axisY);
+        // 模拟实时数据
+        connect(chartTabs[tabName].timer, &QTimer::timeout, currentWidget, [this,chart,tabName]() {
+            auto& series_list = chartTabs[tabName].series_list;
+            for (int i = 0; i < series_list.size(); ++i) {
+                auto &ringbuffer = groups[chartTabs[tabName].group].ring_buffers[i];
+                if (ringbuffer.is_full())
+                    series_list[i]->replace(ringbuffer.get_container());
+                else
+                    series_list[i]->replace(ringbuffer.get_valid_container());
+            }
+            auto time = std::chrono::duration_cast<std::chrono::microseconds>(
+                            (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count() / 1000.f;
+            // 自动滚动视图
+            if (time > 5000) {
+                chart->axisX()->setRange(time - 5000, time);
+            }
+        });
     }
-
-    QFrame *frame = new QFrame(this);
-    frame->setAttribute(Qt::WA_DeleteOnClose);
-    frame->setProperty("group", group->text(0));
-
-    int tabIndex = ui->chartTab->addTab(frame, "Tab" + QString::number(ui->chartTab->currentIndex() + 2));
-    ui->chartTab->setCurrentIndex(tabIndex);
-
-    auto currentWidget = ui->chartTab->currentWidget();
-    QChartView *chartView = new QChartView(chart, currentWidget);
-    chartView->setChart(chart);
-    chartView->setRenderHint(QPainter::Antialiasing);
-    QPushButton *startBtn = new QPushButton("Start", currentWidget);
-    QPushButton *stopBtn = new QPushButton("Stop", currentWidget);
-    QPushButton *reloadBtn = new QPushButton("Reload Chart", currentWidget);
-
-    QGridLayout *gridLayout = new QGridLayout(currentWidget);
-    currentWidget->setLayout(gridLayout);
-    gridLayout->addWidget(reloadBtn, 0, 0, 1, 1);
-    gridLayout->addWidget(startBtn, 0, 1, 1, 1);
-    gridLayout->addWidget(stopBtn, 0, 2, 1, 1);
-    gridLayout->addWidget(chartView, 1, 0, 1, 3);
-
-    ++groups[group->text(0)].used;
-
-    auto start_time = (std::chrono::high_resolution_clock::now());
-
-    // std::thread([this,group,start_time]() {
-    //     while (true) {
-    //         for (int count = 0; count < group->childCount(); ++count) {
-    //             auto &ringbuffer = groups[group->text(0)].ring_buffers[count];
-    //             auto addr = group->child(count)->data(2, Qt::DisplayRole).toString().toLongLong(nullptr, 16);
-    //             // qDebug()<<group->child(count)->data(2,Qt::DisplayRole).toString();
-    //             auto data = link->read_mem(addr);
-    //             auto time = std::chrono::duration_cast<std::chrono::microseconds>(
-    //                             (std::chrono::high_resolution_clock::now() - start_time)).count() / 1000.f;
-    //             auto point = QPointF(time, data);
-    //             ringbuffer.write_data_force(&point, 1);
-    //         }
-    //         // std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    //     }
-    // }).detach();
-
-
-    // 模拟实时数据
-    QTimer *timer = new QTimer(currentWidget);
-    connect(timer, &QTimer::timeout, currentWidget, [this,group,series_list,chart,start_time]() {
-        std::vector<QPointF> points;
-        points.reserve(30);
-        // for (int i = 0; i < 30; ++i) {
-        //     points.emplace_back(x++,500+QRandomGenerator::global()->generateDouble()*100);
-        // }
-        for (int i = 0; i < series_list.size(); ++i) {
-            auto &ringbuffer = groups[group->text(0)].ring_buffers[i];
-            if (ringbuffer.is_full())
-                series_list[i]->replace(ringbuffer.get_container());
-            else
-                series_list[i]->replace(ringbuffer.get_valid_container());
-        }
-        auto time = std::chrono::duration_cast<std::chrono::microseconds>(
-                        (std::chrono::high_resolution_clock::now() - start_time)).count() / 1000.f;
-        // 自动滚动视图
-        if (time > 5000) {
-            chart->axisX()->setRange(time - 5000, time);
-        }
-    });
-    timer->start(30);
 }
 
 void MainWindow::delete_chart(QFrame* frame) {
-    --groups[frame->property("group").toString()].used;
+    auto& chartTab = chartTabs[frame->property("chart").toString()];
+    chartTab.timer->stop();
+    chartTab.state = chartTab::State::Closed;
+    --groups[chartTab.group].used;
     if (frame!=nullptr) {frame->close();};
 }
 

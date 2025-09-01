@@ -101,6 +101,9 @@
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextBesideIcon</enum>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
@@ -133,16 +136,28 @@
    </property>
   </action>
   <action name="actionadd_chart_tab">
+   <property name="icon">
+    <iconset resource="res.qrc">
+     <normaloff>:/images/new.png</normaloff>:/images/new.png</iconset>
+   </property>
    <property name="text">
     <string>add chart tab</string>
    </property>
   </action>
   <action name="actionadd_table_tab">
+   <property name="icon">
+    <iconset resource="res.qrc">
+     <normaloff>:/images/new.png</normaloff>:/images/new.png</iconset>
+   </property>
    <property name="text">
     <string>add table tab</string>
    </property>
   </action>
   <action name="actionconnect">
+   <property name="icon">
+    <iconset resource="res.qrc">
+     <normaloff>:/images/connect.png</normaloff>:/images/connect.png</iconset>
+   </property>
    <property name="text">
     <string>connect</string>
    </property>
@@ -153,6 +168,8 @@
    </property>
   </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="res.qrc"/>
+ </resources>
  <connections/>
 </ui>

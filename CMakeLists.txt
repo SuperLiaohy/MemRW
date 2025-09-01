@@ -30,6 +30,7 @@ set(PROJECT_SOURCES
         mainwindow.ui
         ${TS_FILES}
 
+        res.qrc
         RingBuffer.h
 
         ${GET_ADDR_SRC}

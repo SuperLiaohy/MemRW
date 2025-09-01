@@ -9,6 +9,7 @@
 
 class QTreeWidget;
 class QTreeWidgetItem;
+class QTabWidget;
 QT_BEGIN_NAMESPACE
 
 namespace Ui {
@@ -21,7 +22,7 @@ class AddChartTabDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit AddChartTabDialog(QTreeWidget* group, QWidget *parent = nullptr);
+    explicit AddChartTabDialog(QTreeWidget* group, QTabWidget *tabWidget, QWidget *parent = nullptr);
 
     ~AddChartTabDialog() override;
 
@@ -35,6 +36,7 @@ public:
         Advanced = 2,
     };
 
+    QString tabName();
     QTreeWidgetItem* chartGroup();
     int chartMode();
 

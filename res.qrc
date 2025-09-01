@@ -1,0 +1,14 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/images">
+        <file alias="new.png">images/new.png</file>
+        <file alias="connect.png">images/connect.png</file>
+        <file alias="disconnect.png">images/disconnect.png</file>
+    </qresource>
+<!--    <qresource prefix="/qss">-->
+<!--        <file alias="myStyle.qss">qss/myStyle.qss</file>-->
+<!--    </qresource>-->
+<!--    <qresource prefix="/ui">-->
+<!--        <file alias="calculatorform.ui">calculatorform.ui</file>-->
+<!--    </qresource>-->
+</RCC>

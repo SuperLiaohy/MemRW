@@ -5,11 +5,13 @@
 #include <QMainWindow>
 
 #include <memory>
+#include <thread>
 #include <unordered_map>
 #include "RingBuffer.h"
 #include "DAPReader.h"
 class QTreeWidgetItem;
 class QFrame;
+class QLineSeries;
 class TreeModel;
 class GroupItemAddDialog;
 
@@ -43,7 +45,7 @@ public slots:
     void customGroupMenuRequested(const QPoint& pos);
 public:
 private:
-    void create_chart(QTreeWidgetItem* group, int mode);
+    void create_chart();
     void delete_chart(QFrame* frame);
 
     void create_group();
@@ -57,8 +59,22 @@ private:
         QList<RingBuffer> ring_buffers;
         int used{};
     };
-    std::unordered_map<QString,group> groups;
-
+    std::unordered_map<QString, group> groups;
+    struct chartTab {
+        enum class State {
+            Stop,
+            Running,
+            Closed,
+        };
+        State state;
+        QTimer* timer;
+        QString group;
+        QList<qlonglong> addr;
+        QList<QLineSeries *> series_list;
+        std::chrono::high_resolution_clock::time_point start_time;
+    };
+    std::unordered_map<QString, chartTab> chartTabs;
+    std::thread raad_thread;
     std::unique_ptr<DAPReader> link;
 
 private:
