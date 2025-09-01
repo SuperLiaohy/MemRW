@@ -5,9 +5,13 @@
 #include <QMainWindow>
 
 #include <memory>
+#include <unordered_map>
 #include "RingBuffer.h"
 #include "DAPReader.h"
+class QTreeWidgetItem;
+class QFrame;
 class TreeModel;
+class GroupItemAddDialog;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -37,10 +41,24 @@ public slots:
     void on_dwarf_treeView_doubleClicked(const QModelIndex &index);
     void on_group_treeWidget_doubleClicked(const QModelIndex &index);
     void customGroupMenuRequested(const QPoint& pos);
-private:
-    TreeModel* model = nullptr;
 public:
-    QList<QList<RingBuffer<8000,QPointF,QList<QPointF>>>> rb;
+private:
+    void create_chart(QTreeWidgetItem* group, int mode);
+    void delete_chart(QFrame* frame);
+
+    void create_group();
+    void delete_group(QTreeWidgetItem* group);
+
+    void add_item(GroupItemAddDialog* dlg);
+    void remove_item(QTreeWidgetItem* item);
+    TreeModel* model = nullptr;
+    using RingBuffer = RingBuffer<8000,QPointF,QList<QPointF>>;
+    struct group {
+        QList<RingBuffer> ring_buffers;
+        int used{};
+    };
+    std::unordered_map<QString,group> groups;
+
     std::unique_ptr<DAPReader> link;
 
 private:
