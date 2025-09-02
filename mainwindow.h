@@ -55,9 +55,9 @@ private:
     void add_item(GroupItemAddDialog* dlg);
     void remove_item(QTreeWidgetItem* item);
     TreeModel* model = nullptr;
-    using RingBuffer = RingBuffer<8000,QPointF,QList<QPointF>>;
+    using rb = RingBuffer<8000,QPointF,QList<QPointF>>;
     struct group {
-        QList<RingBuffer> ring_buffers;
+        QList<rb> ring_buffers;
         int used{};
     };
     std::unordered_map<QString, group> groups;
@@ -70,17 +70,25 @@ private:
         State state;
         QTimer* timer;
         QString group;
+        uint32_t freq;
+        uint32_t last_time;
+        std::shared_ptr<std::thread> thread;
+        RingBuffer<200,DAP::TransferRequest> request_rb;
+        RingBuffer<200,DAP::TransferResponse> response_rb;
         QList<qlonglong> addr;
         QList<QLineSeries *> series_list;
         std::chrono::high_resolution_clock::time_point start_time;
+        ~chartTab() {
+            if (thread && thread->joinable()) {
+                thread->join();
+            }
+        }
     };
     std::unordered_map<QString, chartTab> chartTabs;
-    std::unique_ptr<std::thread> read_thread;
-    bool is_closing{false};
-    uint32_t freq{0};
-    QLabel* freqLabel;
-    uint32_t last_time{0};
+    std::unique_ptr<std::thread> link_thread;
     std::unique_ptr<DAPReader> link;
+    bool is_closing{false};
+    bool is_disconnect{true};
 
 private:
     Ui::MainWindow *ui;

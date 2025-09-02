@@ -48,18 +48,13 @@ MainWindow::MainWindow(QWidget *parent)
     setupTab(ui->chartTab);
     this->dumpObjectTree();
 
-    freqLabel = new QLabel("freq: 0",ui->statusbar);
-    freqLabel->setAlignment(Qt::AlignCenter);
-    freqLabel->setMinimumWidth(200);
-    ui->statusbar->addPermanentWidget(freqLabel);
-
 }
 
 MainWindow::~MainWindow()
 {
     is_closing = true;
-    if (this->read_thread->joinable())
-        this->read_thread->join();
+    if (link_thread!=nullptr&&this->link_thread->joinable())
+        this->link_thread->join();
     delete ui;
 }
 
@@ -145,6 +140,12 @@ void MainWindow::on_actionadd_table_tab_triggered() {
 void MainWindow::on_actionconnect_triggered() {
     try {
         if (link!=nullptr) {
+            is_disconnect = true;
+            if (link_thread!=nullptr) {
+                if (link_thread->joinable())
+                    link_thread->join();
+                link_thread.reset();
+            }
             link.reset();
             ui->actionconnect->setText("connect");
             ui->actionconnect->setIcon(QIcon(":/images/connect.png"));
@@ -157,6 +158,52 @@ void MainWindow::on_actionconnect_triggered() {
         ui->statusbar->showMessage("DAPlink connection is successful");
         ui->actionconnect->setText("disconnect");
         ui->actionconnect->setIcon(QIcon(":/images/disconnect.png"));
+        is_disconnect = false;
+        if (link_thread!=nullptr) {
+            if (link_thread->joinable())
+                link_thread->join();
+            link_thread.reset();
+        }
+        link_thread = std::make_unique<std::thread>([this]() {
+            // auto group_name = chartTabs[tabName].group;
+            std::vector<DAP::TransferRequest> send;
+            std::vector<DAP::TransferResponse> receive(255);
+            send.reserve(255);
+            while (true) {
+                if (is_closing == true) { return; }
+                if (is_disconnect == true) { return; }
+                send.clear();
+                receive.clear();
+                std::unordered_map<QString,int> requests_count;
+                for (int chart_count = 0; chart_count < ui->chartTab->count(); ++chart_count) {
+                    auto name = ui->chartTab->tabText(chart_count);
+                    if (!chartTabs.count(name)) {continue;}
+                    auto& chart = chartTabs[name];
+                    auto index = send.size();
+                    auto count = chart.request_rb.size();
+                    if (count == 0) {continue;}
+                    send.resize(index + count);
+                    chart.request_rb.get_data(&send[index], count);
+                    requests_count.emplace(name, count);
+                }
+
+                if (send.empty()) {continue;}
+                link->transfer(send, receive);
+
+
+                int read_index = 0;
+                for (int chart_count = 0; chart_count < ui->chartTab->count(); ++chart_count) {
+                    auto name = ui->chartTab->tabText(chart_count);
+                    if (!chartTabs.count(name)) {continue;}
+                    auto& chart = chartTabs[name];
+                    auto size = requests_count[name];
+                    chart.response_rb.write_data(&receive[read_index],size);
+                    read_index += size;
+                }
+                // std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
+
     } catch (const std::exception& e) {
         ui->statusbar->showMessage("DAPlink connection is failed");
         qDebug() << "catch error: " << e.what();
@@ -230,9 +277,9 @@ void MainWindow::create_chart() {
         chartTabs.emplace(tabName,
             chartTab{.state = chartTab::State::Stop, .group = group->text(0), .start_time = std::chrono::high_resolution_clock::now()});
 
-        // QList<QLineSeries *> series_list(group->childCount());
         auto& series_list = chartTabs[tabName].series_list;
         series_list.resize(group->childCount());
+
         for (int count = 0; count < group->childCount(); ++count) {
             chartTabs[tabName].addr.emplace_back(group->child(count)->data(2, Qt::DisplayRole).toString().toLongLong(nullptr, 16));
             series_list[count] = new QLineSeries(chart);
@@ -255,23 +302,28 @@ void MainWindow::create_chart() {
         QPushButton *startBtn = new QPushButton("Start", currentWidget);
         QPushButton *stopBtn = new QPushButton("Stop", currentWidget);
         QPushButton *reloadBtn = new QPushButton("Reload Chart", currentWidget);
+        QLabel* freqLabel;
+        freqLabel = new QLabel("freq: 0",currentWidget);
+        freqLabel->setAlignment(Qt::AlignCenter);
 
         QGridLayout *gridLayout = new QGridLayout(currentWidget);
         currentWidget->setLayout(gridLayout);
-        gridLayout->addWidget(reloadBtn, 0, 2, 1, 1);
-        gridLayout->addWidget(startBtn, 0, 0, 1, 1);
-        gridLayout->addWidget(stopBtn, 0, 1, 1, 1);
-        gridLayout->addWidget(chartView, 1, 0, 1, 3);
+        gridLayout->addWidget(freqLabel,0,0,1,1);
+        gridLayout->addWidget(reloadBtn, 1, 2, 1, 1);
+        gridLayout->addWidget(startBtn, 1, 0, 1, 1);
+        gridLayout->addWidget(stopBtn, 1, 1, 1, 1);
+        gridLayout->addWidget(chartView, 2, 0, 1, 3);
 
         chartTabs[tabName].timer->stop();
         connect(startBtn, &QPushButton::clicked, currentWidget, [this,tabName,group,chart]() {
-            auto& series_list = chartTabs[tabName].series_list;
+            auto& chartTab = chartTabs[tabName];
+            auto& series_list = chartTab.series_list;
             for (int count = 0; count < series_list.size(); ++count) {
                 chart->removeSeries(series_list[count]);
             }
             series_list.clear();
             series_list.resize(group->childCount());
-            auto& addr_list = chartTabs[tabName].addr;
+            auto& addr_list = chartTab.addr;
             addr_list.clear();
 
             for (int count = 0; count < group->childCount(); ++count) {
@@ -285,64 +337,71 @@ void MainWindow::create_chart() {
                 series_list[count]->attachAxis(chart->axisX());
                 series_list[count]->attachAxis(chart->axisY());
             }
-            for (auto & ring_buffer : groups[chartTabs[tabName].group].ring_buffers) {
+            for (auto & ring_buffer : groups[chartTab.group].ring_buffers) {
                 ring_buffer.reset();
             }
-            last_time = 0;
-            freq = 0;
+            chartTab.last_time = 0;
+            chartTab.freq = 0;
             chart->axisX()->setRange(0, 5000);
-            chartTabs[tabName].start_time = std::chrono::high_resolution_clock::now();
-            chartTabs[tabName].timer->start(30);
-            chartTabs[tabName].state = chartTab::State::Running;
+            chartTab.start_time = std::chrono::high_resolution_clock::now();
+            chartTab.timer->start(30);
+            chartTab.state = chartTab::State::Running;
         });
+
         connect(stopBtn, &QPushButton::clicked, currentWidget, [this,tabName]() {
             chartTabs[tabName].timer->stop();
             chartTabs[tabName].state = chartTab::State::Stop;
         });
 
-        if (read_thread!=nullptr) {
-            if (read_thread->joinable())
-                read_thread->join();
-            read_thread.reset();
+        if (chartTabs[tabName].thread!=nullptr) {
+            if (chartTabs[tabName].thread->joinable())
+                chartTabs[tabName].thread->join();
+            chartTabs[tabName].thread.reset();
         }
-        read_thread = std::make_unique<std::thread>([this,tabName]() {
-            // auto group_name = chartTabs[tabName].group;
+        chartTabs[tabName].thread = std::make_shared<std::thread>([this,tabName,freqLabel]() {
+            auto& chartTab = chartTabs[tabName];
             while (true) {
-                if (is_closing==true){chartTabs.erase(tabName);return;}
-                switch (chartTabs[tabName].state) {
+                if (is_closing==true){return;}
+                switch (chartTab.state) {
                     case chartTab::State::Stop:
                         continue;
                     case chartTab::State::Running:
                         break;
                     case chartTab::State::Closed:
-                        chartTabs.erase(tabName);
                         return;
                 }
                 std::vector<DAP::TransferRequest> send;
-                send.reserve(chartTabs[tabName].addr.size()*2);
-                std::vector<DAP::TransferResponse> receive(chartTabs[tabName].addr.size()*2);
-                for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
-                    send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, static_cast<uint32_t>(chartTabs[tabName].addr[count])));
+                send.reserve(chartTab.addr.size()*2);
+                std::vector<DAP::TransferResponse> receive(chartTab.addr.size()*2);
+                for (int count = 0; count < chartTab.addr.size(); ++count) {
+                    send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, static_cast<uint32_t>(chartTab.addr[count])));
                     send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
                 }
-                link->transfer(send, receive);
+
+                chartTab.request_rb.write_data(send.data(),send.size());
+
+                int timeout = 0;
+                while (true) {
+                    if (chartTab.response_rb.get_data(receive.data(),receive.size())) break;
+                    // ++timeout;
+                }
+
                 auto time = std::chrono::duration_cast<std::chrono::microseconds>(
-                                (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()
+                                (std::chrono::high_resolution_clock::now() - chartTab.start_time)).count()
                             / 1000.f;
-                for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
-                    auto &ringbuffer = groups[chartTabs[tabName].group].ring_buffers[count];
+                for (int count = 0; count < chartTab.addr.size(); ++count) {
+                    auto &ringbuffer = groups[chartTab.group].ring_buffers[count];
                     auto point = QPointF(time, receive[count*2+1].data);
                     ringbuffer.write_data_force(&point, 1);
                 }
 
-                ++freq;
-                if ((static_cast<int>(time)-last_time)/1000 == 1) {
-                    freqLabel->setText(QString("freq: %1").arg(freq));
-                    last_time = time;
-                    freq = 0;
+                ++chartTab.freq;
+                if ((static_cast<int>(time)-chartTab.last_time)/1000 == 1) {
+                    freqLabel->setText(QString("freq: %1").arg(chartTab.freq));
+                    chartTab.last_time = time;
+                    chartTab.freq = 0;
                 }
 
-                // std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         });
 
@@ -372,6 +431,7 @@ void MainWindow::delete_chart(QFrame* frame) {
     chartTab.timer->stop();
     chartTab.state = chartTab::State::Closed;
     --groups[chartTab.group].used;
+    chartTabs.erase(frame->property("chart").toString());
     if (frame!=nullptr) {frame->close();};
 }
 
