@@ -12,6 +12,7 @@
 class QTreeWidgetItem;
 class QFrame;
 class QLineSeries;
+class QLabel;
 class TreeModel;
 class GroupItemAddDialog;
 
@@ -75,6 +76,10 @@ private:
     };
     std::unordered_map<QString, chartTab> chartTabs;
     std::thread raad_thread;
+    bool is_closing{false};
+    uint32_t freq{0};
+    QLabel* freqLabel;
+    uint32_t last_time{0};
     std::unique_ptr<DAPReader> link;
 
 private:

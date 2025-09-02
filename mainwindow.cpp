@@ -48,10 +48,16 @@ MainWindow::MainWindow(QWidget *parent)
     setupTab(ui->chartTab);
     this->dumpObjectTree();
 
+    freqLabel = new QLabel("freq: 0",ui->statusbar);
+    freqLabel->setAlignment(Qt::AlignCenter);
+    freqLabel->setMinimumWidth(200);
+    ui->statusbar->addPermanentWidget(freqLabel);
+
 }
 
 MainWindow::~MainWindow()
 {
+    is_closing = true;
     if (this->raad_thread.joinable())
         this->raad_thread.join();
     delete ui;
@@ -295,6 +301,7 @@ void MainWindow::create_chart() {
         raad_thread = std::thread([this,tabName]() {
             // auto group_name = chartTabs[tabName].group;
             while (true) {
+                if (is_closing==true){chartTabs.erase(tabName);return;}
                 switch (chartTabs[tabName].state) {
                     case chartTab::State::Stop:
                         continue;
@@ -304,6 +311,7 @@ void MainWindow::create_chart() {
                         chartTabs.erase(tabName);
                         return;
                 }
+
                 for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
                     auto &ringbuffer = groups[chartTabs[tabName].group].ring_buffers[count];
                     auto data = link->read_mem(chartTabs[tabName].addr[count]);
@@ -313,6 +321,19 @@ void MainWindow::create_chart() {
                     auto point = QPointF(time, data);
                     ringbuffer.write_data_force(&point, 1);
                 }
+
+
+
+                auto time = std::chrono::duration_cast<std::chrono::microseconds>(
+                (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()/ 1000.f;
+                ++freq;
+                if ((static_cast<int>(time)-last_time)/1000 == 1) {
+                    freqLabel->setText(QString("freq: %1").arg(freq));
+                    qDebug()<<freq;
+                    last_time = time;
+                    freq = 0;
+                }
+
                 // std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
         });
