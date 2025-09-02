@@ -58,8 +58,8 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     is_closing = true;
-    if (this->raad_thread.joinable())
-        this->raad_thread.join();
+    if (this->read_thread->joinable())
+        this->read_thread->join();
     delete ui;
 }
 
@@ -288,6 +288,8 @@ void MainWindow::create_chart() {
             for (auto & ring_buffer : groups[chartTabs[tabName].group].ring_buffers) {
                 ring_buffer.reset();
             }
+            last_time = 0;
+            freq = 0;
             chart->axisX()->setRange(0, 5000);
             chartTabs[tabName].start_time = std::chrono::high_resolution_clock::now();
             chartTabs[tabName].timer->start(30);
@@ -298,7 +300,12 @@ void MainWindow::create_chart() {
             chartTabs[tabName].state = chartTab::State::Stop;
         });
 
-        raad_thread = std::thread([this,tabName]() {
+        if (read_thread!=nullptr) {
+            if (read_thread->joinable())
+                read_thread->join();
+            read_thread.reset();
+        }
+        read_thread = std::make_unique<std::thread>([this,tabName]() {
             // auto group_name = chartTabs[tabName].group;
             while (true) {
                 if (is_closing==true){chartTabs.erase(tabName);return;}
@@ -311,25 +318,26 @@ void MainWindow::create_chart() {
                         chartTabs.erase(tabName);
                         return;
                 }
-
+                std::vector<DAP::TransferRequest> send;
+                send.reserve(chartTabs[tabName].addr.size()*2);
+                std::vector<DAP::TransferResponse> receive(chartTabs[tabName].addr.size()*2);
+                for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
+                    send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, static_cast<uint32_t>(chartTabs[tabName].addr[count])));
+                    send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
+                }
+                link->transfer(send, receive);
+                auto time = std::chrono::duration_cast<std::chrono::microseconds>(
+                                (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()
+                            / 1000.f;
                 for (int count = 0; count < chartTabs[tabName].addr.size(); ++count) {
                     auto &ringbuffer = groups[chartTabs[tabName].group].ring_buffers[count];
-                    auto data = link->read_mem(chartTabs[tabName].addr[count]);
-                    auto time = std::chrono::duration_cast<std::chrono::microseconds>(
-                                    (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()
-                                / 1000.f;
-                    auto point = QPointF(time, data);
+                    auto point = QPointF(time, receive[count*2+1].data);
                     ringbuffer.write_data_force(&point, 1);
                 }
 
-
-
-                auto time = std::chrono::duration_cast<std::chrono::microseconds>(
-                (std::chrono::high_resolution_clock::now() - chartTabs[tabName].start_time)).count()/ 1000.f;
                 ++freq;
                 if ((static_cast<int>(time)-last_time)/1000 == 1) {
                     freqLabel->setText(QString("freq: %1").arg(freq));
-                    qDebug()<<freq;
                     last_time = time;
                     freq = 0;
                 }

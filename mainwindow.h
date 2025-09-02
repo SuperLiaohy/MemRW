@@ -75,7 +75,7 @@ private:
         std::chrono::high_resolution_clock::time_point start_time;
     };
     std::unordered_map<QString, chartTab> chartTabs;
-    std::thread raad_thread;
+    std::unique_ptr<std::thread> read_thread;
     bool is_closing{false};
     uint32_t freq{0};
     QLabel* freqLabel;
