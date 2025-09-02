@@ -42,8 +42,6 @@ MainWindow::MainWindow(QWidget *parent)
             else tabWidget->show();
         });
     };
-
-
     setupTab(ui->tableTab);
     setupTab(ui->chartTab);
     this->dumpObjectTree();
@@ -102,8 +100,8 @@ void MainWindow::on_actioncreate_group_triggered() {
 
 void MainWindow::on_actiondelete_group_triggered() {
     auto group = ui->group_treeWidget->currentItem();
-    if (groups[group->text(0)].used) {
-        QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group is being used.",QMessageBox::Close);
+    if (groups[group->text(0)].bound) {
+        QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group has been bound.",QMessageBox::Close);
         return;
     }
     delete_group(group);
@@ -112,7 +110,7 @@ void MainWindow::on_actiondelete_group_triggered() {
 void MainWindow::on_actiondelete_item_triggered() {
     auto item = ui->group_treeWidget->currentItem()->parent();
     if (groups[item->text(0)].used) {
-        QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group is being used.",QMessageBox::Close);
+        QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group items are being used.",QMessageBox::Close);
         return;
     }
     remove_item(ui->group_treeWidget->currentItem());
@@ -190,13 +188,16 @@ void MainWindow::on_actionconnect_triggered() {
                 if (send.empty()) {continue;}
                 link->transfer(send, receive);
 
-
+                auto time = std::chrono::high_resolution_clock::now();
                 int read_index = 0;
                 for (int chart_count = 0; chart_count < ui->chartTab->count(); ++chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
                     if (!chartTabs.count(name)) {continue;}
                     auto& chart = chartTabs[name];
                     auto size = requests_count[name];
+                    for (int i = 0; i < size; ++i) {
+                        receive[read_index + i].TimeStamp = std::chrono::duration_cast<std::chrono::microseconds>((time - chart.start_time)).count();
+                    }
                     chart.response_rb.write_data(&receive[read_index],size);
                     read_index += size;
                 }
@@ -226,8 +227,10 @@ void MainWindow::on_group_treeWidget_doubleClicked(const QModelIndex &index) {
     if(index.column()!=4) {return;}
     auto item = static_cast<QTreeWidgetItem*>(ui->group_treeWidget->currentIndex().internalPointer());
     QColor color = QColorDialog::getColor(item->text(4), this, "select color");
-    item->setText(4, color.name());
-    item->setData(4, Qt::BackgroundRole, color);
+    if (color.isValid()) {
+        item->setText(4, color.name());
+        item->setData(4, Qt::BackgroundRole, color);
+    }
 
 }
 
@@ -273,7 +276,7 @@ void MainWindow::create_chart() {
 
         int tabIndex = ui->chartTab->addTab(frame, tabName);
         ui->chartTab->setCurrentIndex(tabIndex);
-        ++groups[group->text(0)].used;
+        ++groups[group->text(0)].bound;
         chartTabs.emplace(tabName,
             chartTab{.state = chartTab::State::Stop, .group = group->text(0), .start_time = std::chrono::high_resolution_clock::now()});
 
@@ -301,22 +304,51 @@ void MainWindow::create_chart() {
         chartView->setRenderHint(QPainter::Antialiasing);
         QPushButton *startBtn = new QPushButton("Start", currentWidget);
         QPushButton *stopBtn = new QPushButton("Stop", currentWidget);
-        QPushButton *reloadBtn = new QPushButton("Reload Chart", currentWidget);
-        QLabel* freqLabel;
-        freqLabel = new QLabel("freq: 0",currentWidget);
+        QPushButton *logfileBtn = new QPushButton("log config", currentWidget);
+        QCheckBox* logfileCheckBox = new QCheckBox("log data into a file", currentWidget);
+        logfileCheckBox->setEnabled(true);
+
+        QLabel* freqLabel = new QLabel("freq: 0",currentWidget);
         freqLabel->setAlignment(Qt::AlignCenter);
 
         QGridLayout *gridLayout = new QGridLayout(currentWidget);
         currentWidget->setLayout(gridLayout);
         gridLayout->addWidget(freqLabel,0,0,1,1);
-        gridLayout->addWidget(reloadBtn, 1, 2, 1, 1);
+        gridLayout->addWidget(logfileCheckBox, 0, 2, 1, 1);
+        gridLayout->addWidget(logfileBtn, 1, 2, 1, 1);
         gridLayout->addWidget(startBtn, 1, 0, 1, 1);
         gridLayout->addWidget(stopBtn, 1, 1, 1, 1);
         gridLayout->addWidget(chartView, 2, 0, 1, 3);
 
         chartTabs[tabName].timer->stop();
-        connect(startBtn, &QPushButton::clicked, currentWidget, [this,tabName,group,chart]() {
+        connect(startBtn, &QPushButton::clicked, currentWidget, [this,tabName,group,chart,logfileCheckBox]() {
+            if (is_disconnect == true) {
+                QMessageBox::critical(this,"MESSAGE","you can not start when you are not in connection!",QMessageBox::Ok);
+                return;
+            }
             auto& chartTab = chartTabs[tabName];
+            if (groups[chartTab.group].ring_buffers.size() == 0) {
+                QMessageBox::critical(this, "MESSAGE", "you can not start because the group you bound is empty!",QMessageBox::Ok);
+                return;
+            }
+            if (logfileCheckBox->isChecked()) {
+                if (chartTab.logfile!=nullptr) {
+                    chartTab.logfile->close();
+                    chartTab.logfile.reset();
+                }
+                if (chartTab.logfile_path.isEmpty()) {
+                    QMessageBox::critical(this,"MESSAGE","can not open logfile!",QMessageBox::Ok);
+                    return;
+                }
+                chartTab.logfile = std::make_shared<QFile>(chartTab.logfile_path);
+                if (!chartTab.logfile->open(QIODevice::WriteOnly | QIODevice::Text)) {
+                    QMessageBox::critical(this,"MESSAGE","can not open logfile!",QMessageBox::Ok);
+                    chartTab.logfile.reset();
+                    return;
+                }
+            }
+            logfileCheckBox->setEnabled(false);
+
             auto& series_list = chartTab.series_list;
             for (int count = 0; count < series_list.size(); ++count) {
                 chart->removeSeries(series_list[count]);
@@ -326,20 +358,26 @@ void MainWindow::create_chart() {
             auto& addr_list = chartTab.addr;
             addr_list.clear();
 
+            QStringList csv_header;
+            csv_header << "TimeStamp";
             for (int count = 0; count < group->childCount(); ++count) {
+                auto chile_name = group->child(count)->data(0, Qt::DisplayRole).toString();
+                if (logfileCheckBox->isChecked()) csv_header << chile_name;
                 addr_list.emplace_back(
                     group->child(count)->data(2, Qt::DisplayRole).toString().toLongLong(nullptr, 16));
                 series_list[count] = new QLineSeries(chart);
-                series_list[count]->setName(group->child(count)->data(0, Qt::DisplayRole).toString());
+                series_list[count]->setName(chile_name);
                 series_list[count]->setProperty(
                     "color", QColor(group->child(count)->data(4, Qt::DisplayRole).toString()));
                 chart->addSeries(series_list[count]);
                 series_list[count]->attachAxis(chart->axisX());
                 series_list[count]->attachAxis(chart->axisY());
             }
+            if (logfileCheckBox->isChecked()) writeCsv(chartTab.logfile, {csv_header});
             for (auto & ring_buffer : groups[chartTab.group].ring_buffers) {
                 ring_buffer.reset();
             }
+            ++groups[chartTab.group].used;
             chartTab.last_time = 0;
             chartTab.freq = 0;
             chart->axisX()->setRange(0, 5000);
@@ -348,9 +386,28 @@ void MainWindow::create_chart() {
             chartTab.state = chartTab::State::Running;
         });
 
-        connect(stopBtn, &QPushButton::clicked, currentWidget, [this,tabName]() {
-            chartTabs[tabName].timer->stop();
-            chartTabs[tabName].state = chartTab::State::Stop;
+        connect(stopBtn, &QPushButton::clicked, currentWidget, [this,tabName,logfileCheckBox]() {
+            auto& chartTab = chartTabs[tabName];
+            if (chartTab.logfile != nullptr) {
+                chartTab.logfile->close();
+                chartTab.logfile.reset();
+            }
+            logfileCheckBox->setEnabled(true);
+            chartTab.timer->stop();
+            chartTab.state = chartTab::State::Stop;
+            --groups[chartTab.group].used;
+        });
+
+        connect(logfileBtn, &QPushButton::clicked, currentWidget, [this,tabName]() {
+            auto& chartTab = chartTabs[tabName];
+            if (chartTab.state == chartTab::State::Running) {
+                QMessageBox::critical(this,"MESSAGE","you can not change logfile when you are collecting the data!\nplease stop first!",QMessageBox::Ok);
+                return;
+            }
+            bool ok=false;
+            auto file = QInputDialog::getText(this,"logfile path","please input a logfile path(include file name): ", QLineEdit::Normal, chartTab.logfile_path, &ok);
+            if (ok==false) {return;}
+            chartTab.logfile_path = file;
         });
 
         if (chartTabs[tabName].thread!=nullptr) {
@@ -358,7 +415,8 @@ void MainWindow::create_chart() {
                 chartTabs[tabName].thread->join();
             chartTabs[tabName].thread.reset();
         }
-        chartTabs[tabName].thread = std::make_shared<std::thread>([this,tabName,freqLabel]() {
+
+        chartTabs[tabName].thread = std::make_shared<std::thread>([this,tabName,freqLabel, logfileCheckBox]() {
             auto& chartTab = chartTabs[tabName];
             while (true) {
                 if (is_closing==true){return;}
@@ -389,11 +447,19 @@ void MainWindow::create_chart() {
                 auto time = std::chrono::duration_cast<std::chrono::microseconds>(
                                 (std::chrono::high_resolution_clock::now() - chartTab.start_time)).count()
                             / 1000.f;
+                QStringList csv_data;
+                if (receive.size()>1)
+                    csv_data.append(QString::number(receive[1].TimeStamp/1000.f));
+                else
+                    csv_data.append(QString::number(time));
+
                 for (int count = 0; count < chartTab.addr.size(); ++count) {
                     auto &ringbuffer = groups[chartTab.group].ring_buffers[count];
-                    auto point = QPointF(time, receive[count*2+1].data);
+                    auto point = QPointF(receive[count*2+1].TimeStamp/1000.f, receive[count*2+1].data);
                     ringbuffer.write_data_force(&point, 1);
+                    if (logfileCheckBox->isChecked()) {csv_data.append(QString::number(receive[count*2+1].data));}
                 }
+                if (logfileCheckBox->isChecked()) writeCsv(chartTab.logfile, {csv_data});
 
                 ++chartTab.freq;
                 if ((static_cast<int>(time)-chartTab.last_time)/1000 == 1) {
@@ -430,7 +496,7 @@ void MainWindow::delete_chart(QFrame* frame) {
     auto& chartTab = chartTabs[frame->property("chart").toString()];
     chartTab.timer->stop();
     chartTab.state = chartTab::State::Closed;
-    --groups[chartTab.group].used;
+    --groups[chartTab.group].bound;
     chartTabs.erase(frame->property("chart").toString());
     if (frame!=nullptr) {frame->close();};
 }
@@ -486,4 +552,11 @@ void MainWindow::remove_item(QTreeWidgetItem* item) {
     auto group = item->parent();
     groups[group->text(0)].ring_buffers.pop_back();
     group->removeChild(ui->group_treeWidget->currentItem());
+}
+
+void MainWindow::writeCsv(const std::shared_ptr<QFile>& file, const QList<QStringList> &data) {
+    QTextStream out(file.get());
+    for (const QStringList &row: data) {
+        out << row.join(',') << "\n";
+    }
 }

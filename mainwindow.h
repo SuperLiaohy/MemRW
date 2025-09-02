@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <thread>
+#include <QFile>
 #include <unordered_map>
 #include "RingBuffer.h"
 #include "DAPReader.h"
@@ -13,6 +14,8 @@ class QTreeWidgetItem;
 class QFrame;
 class QLineSeries;
 class QLabel;
+class QFile;
+class QCheckBox;
 class TreeModel;
 class GroupItemAddDialog;
 
@@ -54,10 +57,12 @@ private:
 
     void add_item(GroupItemAddDialog* dlg);
     void remove_item(QTreeWidgetItem* item);
+    void writeCsv(const std::shared_ptr<QFile>& file, const QList<QStringList> &data);
     TreeModel* model = nullptr;
     using rb = RingBuffer<8000,QPointF,QList<QPointF>>;
     struct group {
         QList<rb> ring_buffers;
+        int bound{};
         int used{};
     };
     std::unordered_map<QString, group> groups;
@@ -70,6 +75,9 @@ private:
         State state;
         QTimer* timer;
         QString group;
+        QString logfile_path;
+        std::shared_ptr<QFile> logfile;
+        bool is_log{false};
         uint32_t freq;
         uint32_t last_time;
         std::shared_ptr<std::thread> thread;
@@ -79,6 +87,10 @@ private:
         QList<QLineSeries *> series_list;
         std::chrono::high_resolution_clock::time_point start_time;
         ~chartTab() {
+            if (logfile!=nullptr) {
+                logfile->close();
+                logfile.reset();
+            }
             if (thread && thread->joinable()) {
                 thread->join();
             }

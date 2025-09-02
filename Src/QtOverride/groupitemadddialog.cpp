@@ -9,6 +9,7 @@
 #include <QColorDialog>
 #include <QTreeWidget>
 #include <QMessageBox>
+#include <qrandom.h>
 
 #include "TreeItem.h"
 
@@ -28,6 +29,12 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
     ui->typeBox->addItems({"uint8_t","uint16_t","uint32_t","uint64_t","int8_t","int16_t","int32_t","int64_t", "float","double", item->data(1).toString()});
     ui->typeBox->setCurrentIndex(10);
 
+    auto generator = QRandomGenerator::global();
+    QColor color = QColor(generator->bounded(256),generator->bounded(256),generator->bounded(256));
+    ui->colorLabel->setText(color.name());
+    ui->colorLabel->setPalette(QPalette(color));
+    ui->colorLabel->setAutoFillBackground(true);
+
     connect(ui->buttonBox,&QDialogButtonBox::accepted,this,[this]() {
         if (ui->colorLabel->text()=="wait for selection") {
             int reply = QMessageBox::critical(this, tr("MESSAGE"), tr("you should first select a color before accepting"), QMessageBox::Retry,
@@ -46,9 +53,11 @@ GroupItemAddDialog::~GroupItemAddDialog() {
 void GroupItemAddDialog::on_colorBtn_clicked() {
     QColorDialog::ColorDialogOptions options;
     QColor color = QColorDialog::getColor(QColor(Qt::blue),this,"select color", options);
-    ui->colorLabel->setText(color.name());
-    ui->colorLabel->setPalette(QPalette(color));
-    ui->colorLabel->setAutoFillBackground(true);
+    if (color.isValid()) {
+        ui->colorLabel->setText(color.name());
+        ui->colorLabel->setPalette(QPalette(color));
+        ui->colorLabel->setAutoFillBackground(true);
+    }
 }
 
 void GroupItemAddDialog::on_typeBox_currentIndexChanged(int index) {
