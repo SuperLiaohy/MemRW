@@ -88,9 +88,8 @@ private:
         std::shared_ptr<QFile> logfile;
         uint32_t freq;
         uint32_t last_time;
-        std::shared_ptr<std::thread> thread;
-        RingBuffer<200,DAP::TransferRequest> request_rb;
-        RingBuffer<200,DAP::TransferResponse> response_rb;
+        QLabel* freqLabel;
+        QCheckBox* logfileCheckBox;
         // QList<qlonglong> addr;
         QList<QLineSeries *> series_list;
         std::chrono::high_resolution_clock::time_point start_time;
@@ -98,9 +97,6 @@ private:
             if (logfile!=nullptr) {
                 logfile->close();
                 logfile.reset();
-            }
-            if (thread && thread->joinable()) {
-                thread->join();
             }
         }
     };
