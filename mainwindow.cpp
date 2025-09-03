@@ -477,11 +477,57 @@ void MainWindow::create_chart() {
                     csv_data.append(QString::number(time));
 
                 for (int count = 0; count < chartTab.series_list.size(); ++count) {
-                    auto &ringbuffer = groups[chartTab.group].variables[chartTab.series_list[count]->name()].ring_buffers;
-                    auto data = receive[count*2+1].data;
-                    auto point = QPointF(receive[count*2+1].TimeStamp/1000.f, data);
-                    ringbuffer.write_data_force(&point, 1);
-                    if (logfileCheckBox->isChecked()) {csv_data.append(QString::number(data));}
+                    auto& variable = groups[chartTab.group].variables[chartTab.series_list[count]->name()];
+                    auto& ringbuffer = variable.ring_buffers;
+                    switch (variable.type) {
+                        case GroupItemAddDialog::Type::INT8: {
+                            int8_t data = receive[count * 2 + 1].data8i[0];
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::UINT8: {
+                            uint8_t data = receive[count * 2 + 1].data8u[0];
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::INT16: {
+                            int16_t data = receive[count * 2 + 1].data16i[0];
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::UINT16: {
+                            int16_t data = receive[count * 2 + 1].data16u[0];
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::INT32: {
+                            int32_t data = receive[count * 2 + 1].data32i;
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::UINT32: {
+                            uint32_t data = receive[count * 2 + 1].data;
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                        case GroupItemAddDialog::Type::FLOAT: {
+                            float data = receive[count * 2 + 1].data32f;
+                            auto point = QPointF(receive[count * 2 + 1].TimeStamp / 1000.f, data);
+                            ringbuffer.write_data_force(&point, 1);
+                            if (logfileCheckBox->isChecked()) { csv_data.append(QString::number(data)); }
+                        } break;
+                            case GroupItemAddDialog::Type::DOUBLE:
+                            case GroupItemAddDialog::Type::INT64:
+                            case GroupItemAddDialog::Type::UINT64:
+                            break;
+
+                    }
                 }
                 if (logfileCheckBox->isChecked()) writeCsv(chartTab.logfile, {csv_data});
 

@@ -67,7 +67,15 @@ namespace DAP {
 #pragma pack(push,1)
     struct TransferResponse {
         uint32_t TimeStamp;
-        uint32_t data;
+        union {
+            uint32_t data;
+            uint16_t data16u[2];
+            uint8_t data8u[4];
+            int32_t data32i;
+            int16_t data16i[2];
+            int8_t data8i[4];
+            float data32f;
+        };
     };
 #pragma pack(pop)
 }
