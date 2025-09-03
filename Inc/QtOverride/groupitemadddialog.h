@@ -26,6 +26,9 @@ public:
 
     ~GroupItemAddDialog() override;
 
+    enum class Type { INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64, FLOAT, DOUBLE};
+    static int SizeType(Type type);
+
 public slots:
     void on_colorBtn_clicked();
     void on_typeBox_currentIndexChanged(int index);
@@ -34,6 +37,7 @@ public:
     QString itemName();
     QString itemAddr();
     QString itemType();
+    Type itemTypeEnum();
     QString itemSize();
     QColor itemColor();
     QTreeWidgetItem* itemGroup();

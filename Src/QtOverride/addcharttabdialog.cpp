@@ -38,7 +38,10 @@ AddChartTabDialog::AddChartTabDialog(QTreeWidget* group, QTabWidget *tabWidget, 
                                               QMessageBox::Abort);
             if (reply == QMessageBox::Abort) {
                 this->reject();
+                return;
             } else if (reply == QMessageBox::Retry) {
+                ui->nameEdit->setFocus();
+                ui->nameEdit->selectAll();
                 return;
             }
         }

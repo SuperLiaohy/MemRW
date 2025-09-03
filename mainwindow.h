@@ -8,8 +8,10 @@
 #include <thread>
 #include <QFile>
 #include <unordered_map>
+#include "groupitemadddialog.h"
 #include "RingBuffer.h"
 #include "DAPReader.h"
+
 class QTreeWidgetItem;
 class QFrame;
 class QLineSeries;
@@ -17,7 +19,6 @@ class QLabel;
 class QFile;
 class QCheckBox;
 class TreeModel;
-class GroupItemAddDialog;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -50,7 +51,7 @@ public slots:
 public:
 private:
     void create_chart();
-    void delete_chart(QFrame* frame);
+    void delete_chart(const QString& tabName);
 
     void create_group();
     void delete_group(QTreeWidgetItem* group);
@@ -60,10 +61,18 @@ private:
     void writeCsv(const std::shared_ptr<QFile>& file, const QList<QStringList> &data);
     TreeModel* model = nullptr;
     using rb = RingBuffer<8000,QPointF,QList<QPointF>>;
+
+    struct variable {
+        uint64_t address{};
+        GroupItemAddDialog::Type type{GroupItemAddDialog::Type::INT32};
+        QColor color;
+        rb ring_buffers;
+    };
     struct group {
-        QList<rb> ring_buffers;
+        // QList<rb> ring_buffers;
         int bound{};
         int used{};
+        std::unordered_map<QString, variable> variables;
     };
     std::unordered_map<QString, group> groups;
     struct chartTab {
@@ -77,13 +86,12 @@ private:
         QString group;
         QString logfile_path;
         std::shared_ptr<QFile> logfile;
-        bool is_log{false};
         uint32_t freq;
         uint32_t last_time;
         std::shared_ptr<std::thread> thread;
         RingBuffer<200,DAP::TransferRequest> request_rb;
         RingBuffer<200,DAP::TransferResponse> response_rb;
-        QList<qlonglong> addr;
+        // QList<qlonglong> addr;
         QList<QLineSeries *> series_list;
         std::chrono::high_resolution_clock::time_point start_time;
         ~chartTab() {

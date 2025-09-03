@@ -36,11 +36,21 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
     ui->colorLabel->setAutoFillBackground(true);
 
     connect(ui->buttonBox,&QDialogButtonBox::accepted,this,[this]() {
-        if (ui->colorLabel->text()=="wait for selection") {
-            int reply = QMessageBox::critical(this, tr("MESSAGE"), tr("you should first select a color before accepting"), QMessageBox::Retry,
+        int same = 0;
+        for (int i = 0; i < itemGroup()->childCount(); ++i) {
+            if (itemName() == itemGroup()->child(i)->text(0)) { ++same; }
+        }
+        if (same > 0) {
+            int reply = QMessageBox::critical(this, tr("MESSAGE"), tr("you can not take two names"), QMessageBox::Retry,
                                               QMessageBox::Abort);
-            if (reply == QMessageBox::Retry) {return;}
-            if (reply == QMessageBox::Abort) {this->reject();return;}
+            if (reply == QMessageBox::Abort) {
+                this->reject();
+                return;
+            } else if (reply == QMessageBox::Retry) {
+                ui->nameEdit->setFocus();
+                ui->nameEdit->selectAll();
+                return;
+            }
         }
         this->accept();
     });
@@ -48,6 +58,27 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
 
 GroupItemAddDialog::~GroupItemAddDialog() {
     delete ui;
+}
+
+int GroupItemAddDialog::SizeType(Type type) {
+    switch (type) {
+        case Type::INT8:
+        case Type::UINT8:
+            return 1;
+        case Type::INT16:
+        case Type::UINT16:
+            return 2;
+        case Type::INT32:
+        case Type::UINT32:
+        case Type::FLOAT:
+            return 4;
+        case Type::INT64:
+        case Type::UINT64:
+        case Type::DOUBLE:
+            return 8;
+        default:
+            return 0;
+    }
 }
 
 void GroupItemAddDialog::on_colorBtn_clicked() {
@@ -61,35 +92,7 @@ void GroupItemAddDialog::on_colorBtn_clicked() {
 }
 
 void GroupItemAddDialog::on_typeBox_currentIndexChanged(int index) {
-    int size;
-    switch (index) {
-        case 0:
-        case 4:
-            size = 1;
-            break;
-        case 1:
-        case 5:
-            size = 2;
-            break;
-        case 2:
-        case 6:
-            size = 4;
-            break;
-        case 3:
-        case 7:
-            size = 8;
-            break;
-        case 8:
-            size = 4;
-            break;
-        case 9:
-            size = 8;
-            break;
-        default:
-            size = 4;
-            break;
-    }
-    ui->sizeEdit->setText(QString::number(size));
+    ui->sizeEdit->setText(QString::number(SizeType(itemTypeEnum())));
 }
 
 void GroupItemAddDialog::on_groupBox_currentIndexChanged(int index) {
@@ -106,6 +109,56 @@ QString GroupItemAddDialog::itemAddr() {
 
 QString GroupItemAddDialog::itemType() {
     return ui->typeBox->currentText();
+}
+
+GroupItemAddDialog::Type GroupItemAddDialog::itemTypeEnum() {
+    const auto& type_name = ui->typeBox->currentText();
+    if (type_name.contains("uint8_t"))
+        return GroupItemAddDialog::Type::UINT8;
+    if (type_name.contains("uint16_t"))
+        return GroupItemAddDialog::Type::UINT16;
+    if (type_name.contains("uint32_t"))
+        return GroupItemAddDialog::Type::UINT32;
+    if (type_name.contains("uint64_t"))
+        return GroupItemAddDialog::Type::UINT64;
+    if (type_name.contains("int8_t"))
+        return GroupItemAddDialog::Type::INT8;
+    if (type_name.contains("int16_t"))
+        return GroupItemAddDialog::Type::INT16;
+    if (type_name.contains("int32_t"))
+        return GroupItemAddDialog::Type::INT32;
+    if (type_name.contains("int64_t"))
+        return GroupItemAddDialog::Type::INT64;
+    if (type_name.contains("float"))
+        return GroupItemAddDialog::Type::FLOAT;
+    if (type_name.contains("double"))
+        return GroupItemAddDialog::Type::DOUBLE;
+    if (type_name.contains("unsigned")) {
+        if (type_name.contains("char"))
+            return GroupItemAddDialog::Type::UINT8;
+        if (type_name.contains("short"))
+            return GroupItemAddDialog::Type::UINT16;
+        if (type_name.contains("int"))
+            return GroupItemAddDialog::Type::UINT32;
+        if (type_name.contains("long")&&type_name.indexOf("long")!=type_name.lastIndexOf("long"))
+            return GroupItemAddDialog::Type::UINT64;
+    } else {
+        if (type_name.contains("char"))
+            return GroupItemAddDialog::Type::INT8;
+        if (type_name.contains("short"))
+            return GroupItemAddDialog::Type::INT16;
+        if (type_name.contains("int"))
+            return GroupItemAddDialog::Type::INT32;
+        if (type_name.contains("long")&&type_name.indexOf("long")!=type_name.lastIndexOf("long"))
+            return GroupItemAddDialog::Type::INT64;
+    }
+    if (type_name.contains("f")) {
+        if (type_name.contains("32"))
+            return GroupItemAddDialog::Type::FLOAT;
+        if (type_name.contains("64"))
+            return GroupItemAddDialog::Type::DOUBLE;
+    }
+    return Type::INT32;
 }
 
 QString GroupItemAddDialog::itemSize() {
