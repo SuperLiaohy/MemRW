@@ -135,17 +135,17 @@
   </widget>
   <action name="actiondelete_group">
    <property name="text">
-    <string>delete group</string>
+    <string>delete Group</string>
    </property>
   </action>
   <action name="actioncreate_group">
    <property name="text">
-    <string>create group</string>
+    <string>create Group</string>
    </property>
   </action>
   <action name="actiondisplay_group_dock">
    <property name="text">
-    <string>display group dock</string>
+    <string>display Group dock</string>
    </property>
   </action>
   <action name="actiondisplay_variable_dock">
@@ -159,7 +159,7 @@
      <normaloff>:/images/new.png</normaloff>:/images/new.png</iconset>
    </property>
    <property name="text">
-    <string>add chart tab</string>
+    <string>add chartWidget tab</string>
    </property>
   </action>
   <action name="actionadd_table_tab">

@@ -50,5 +50,18 @@ private:
     Ui::GroupItemAddDialog *ui;
 };
 
-
+#include "../../RingBuffer.h"
+namespace GroupTreeWidget {
+    struct variable {
+        uint64_t address{};
+        GroupItemAddDialog::Type type{GroupItemAddDialog::Type::INT32};
+        QColor color;
+        RingBuffer<8000, QPointF, QList<QPointF>> ring_buffers;
+    };
+    struct Group {
+        int bound{};
+        int used{};
+        std::unordered_map<QString, variable> variables;
+    };
+}
 #endif //MEMRW_GROUPITEMADDDIALOG_H

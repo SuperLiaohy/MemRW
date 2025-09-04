@@ -27,3 +27,6 @@ private:
     QList<std::shared_ptr<TreeItem>> child_list;
     TreeItem* m_parent;
 };
+
+
+

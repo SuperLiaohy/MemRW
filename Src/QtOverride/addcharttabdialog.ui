@@ -33,7 +33,7 @@
    <item row="1" column="0">
     <widget class="QLabel" name="groupLabel">
      <property name="text">
-      <string>group:</string>
+      <string>Group:</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
