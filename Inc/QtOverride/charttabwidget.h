@@ -19,16 +19,17 @@ class ChartTabWidget : public QWidget {
 Q_OBJECT
 
 public:
-    explicit ChartTabWidget(GroupTreeWidget::Group &group, QWidget *parent = nullptr);
+    explicit ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& group, QWidget *parent = nullptr);
 
     ~ChartTabWidget() override;
 public:
     ChartWidget* chartWidget();
     void UpdateFreq();
     void writeCsv(const QList<QStringList> &data);
+    void startBtnEnable(bool able);
 
     float TimeStamp(std::chrono::high_resolution_clock::time_point time) {return std::chrono::duration_cast<std::chrono::microseconds>((time - start_time)).count() / 1000.f;}
-    GroupTreeWidget::Group &GroupBound() {return group;}
+    std::shared_ptr<GroupTreeWidget::Group>& GroupBound() {return group;}
     bool isRun() {return isRunning;}
     bool isLog() {return islog;}
     const QList<QLineSeries *>& seriesList() {return series_list;}
@@ -45,7 +46,7 @@ private:
     bool islog = false;
     bool isRunning = false;
     QString file_name;
-    GroupTreeWidget::Group &group;
+    std::shared_ptr<GroupTreeWidget::Group> group;
     QList<QLineSeries *> series_list;
 
 

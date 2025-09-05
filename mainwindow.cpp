@@ -21,8 +21,6 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    groups.reserve(50);
-
     ui->dwarfDock->setWindowTitle("variables");
     ui->fileEdit->setReadOnly(true);
 
@@ -104,7 +102,7 @@ void MainWindow::on_actioncreate_group_triggered() {
 
 void MainWindow::on_actiondelete_group_triggered() {
     auto group = ui->group_treeWidget->currentItem();
-    if (groups[group->text(0)].bound) {
+    if (groups[group->text(0)]->bound) {
         QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group has been bound.",QMessageBox::Close);
         return;
     }
@@ -113,7 +111,7 @@ void MainWindow::on_actiondelete_group_triggered() {
 
 void MainWindow::on_actiondelete_item_triggered() {
     auto item = ui->group_treeWidget->currentItem()->parent();
-    if (groups[item->text(0)].used) {
+    if (groups[item->text(0)]->used) {
         QMessageBox::critical(this,"MESSAGE","You can not delete the group, because the group items are being used.",QMessageBox::Close);
         return;
     }
@@ -149,6 +147,9 @@ void MainWindow::on_actionconnect_triggered() {
                 link_thread.reset();
             }
             link.reset();
+            for (auto &tab:chartTabs) {
+                tab.second->startBtnEnable(false);
+            }
             ui->actionconnect->setText("connect");
             ui->actionconnect->setIcon(QIcon(":/images/connect.png"));
             ui->statusbar->showMessage("DAPlink has been disconnected");
@@ -161,10 +162,14 @@ void MainWindow::on_actionconnect_triggered() {
         ui->actionconnect->setText("disconnect");
         ui->actionconnect->setIcon(QIcon(":/images/disconnect.png"));
         is_disconnect = false;
+
         if (link_thread!=nullptr) {
             if (link_thread->joinable())
                 link_thread->join();
             link_thread.reset();
+        }
+        for (auto &tab:chartTabs) {
+            tab.second->startBtnEnable(true);
         }
         link_thread = std::make_unique<std::thread>([this]() {
             // auto group_name = chartTabs[tabName].group;
@@ -186,7 +191,7 @@ void MainWindow::on_actionconnect_triggered() {
                     charts_state.emplace(name,1);
                     for (int count = 0; count < chartTabWidget->seriesList().size(); ++count) {
                         const auto &variable_name = chartTabWidget->seriesList()[count]->name();
-                        const auto &variable = chartTabWidget->GroupBound().variables.at(variable_name);
+                        const auto &variable = chartTabWidget->GroupBound()->variables.at(variable_name);
                         send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, static_cast<uint32_t>(variable.address)));
                         send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
                     }
@@ -207,7 +212,7 @@ void MainWindow::on_actionconnect_triggered() {
                     auto time_spent = chartTabWidget->TimeStamp(time);
                     csv_data.append(QString::number(time_spent));
                     for (int count = 0; count < chartTabWidget->seriesList().size(); ++count) {
-                        auto &variable = chartTabWidget->GroupBound().variables[chartTabWidget->seriesList()[count]->name()];
+                        auto &variable = chartTabWidget->GroupBound()->variables[chartTabWidget->seriesList()[count]->name()];
                         auto &ringbuffer = variable.ring_buffers;
                         switch (variable.type) {
                             case GroupItemAddDialog::Type::INT8: {
@@ -334,6 +339,9 @@ void MainWindow::create_chart() {
         chartTabs.emplace(tabName, new ChartTabWidget(group,this));
         auto& chartTabWidget = chartTabs[tabName];
 
+
+        if (is_disconnect) {chartTabWidget->startBtnEnable(false);}
+
         // create the tab base widget
         chartTabWidget->setAttribute(Qt::WA_DeleteOnClose);
 
@@ -371,7 +379,7 @@ void MainWindow::create_group() {
         return;
     }
     QTreeWidgetItem* item = new QTreeWidgetItem(ui->group_treeWidget);
-    groups.emplace(name,GroupTreeWidget::Group());
+    groups.emplace(name, std::make_shared<GroupTreeWidget::Group>());
     item->setText(0, name);
 }
 
@@ -392,12 +400,12 @@ void MainWindow::add_item(GroupItemAddDialog* dlg) {
     newItem->setData(4, Qt::BackgroundRole, dlg->itemColor());
     group->addChild(newItem);
     // groups[group->text(0)].ring_buffers.emplace_back();
-    groups[group->text(0)].variables.emplace(dlg->itemName(), GroupTreeWidget::variable{.address = static_cast<uint64_t>(dlg->itemAddr().toLongLong(nullptr,16)), .type = dlg->itemTypeEnum(), .color = dlg->itemColor()});
+    groups[group->text(0)]->variables.emplace(dlg->itemName(), GroupTreeWidget::variable{.address = static_cast<uint64_t>(dlg->itemAddr().toLongLong(nullptr,16)), .type = dlg->itemTypeEnum(), .color = dlg->itemColor()});
 }
 
 void MainWindow::remove_item(QTreeWidgetItem* item) {
     auto group = item->parent();
     // groups[group->text(0)].ring_buffers.pop_back();
-    groups[group->text(0)].variables.erase(item->text(0));
+    groups[group->text(0)]->variables.erase(item->text(0));
     group->removeChild(ui->group_treeWidget->currentItem());
 }

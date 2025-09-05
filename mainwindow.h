@@ -61,7 +61,7 @@ private:
     void remove_item(QTreeWidgetItem* item);
     TreeModel* model = nullptr;
 
-    std::unordered_map<QString, GroupTreeWidget::Group> groups;
+    std::unordered_map<QString, std::shared_ptr<GroupTreeWidget::Group>> groups;
     std::unordered_map<QString, ChartTabWidget*> chartTabs;
     std::unique_ptr<std::thread> link_thread;
     std::unique_ptr<DAPReader> link;

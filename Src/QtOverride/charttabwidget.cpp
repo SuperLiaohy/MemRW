@@ -9,7 +9,7 @@
 
 #include "datalogdialog.h"
 
-ChartTabWidget::ChartTabWidget(GroupTreeWidget::Group &group, QWidget *parent) :
+ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& group, QWidget *parent) :
         QWidget(parent), ui(new Ui::ChartTabWidget), group(group) {
     ui->setupUi(this);
 
@@ -41,26 +41,26 @@ ChartTabWidget::ChartTabWidget(GroupTreeWidget::Group &group, QWidget *parent) :
     });
 
     // create the series to paint the chart and load ringbuffer data
-    series_list.resize(group.variables.size());
+    series_list.resize(group->variables.size());
 
     int index = 0;
-    for (auto & variable: group.variables) {
+    for (auto & variable: group->variables) {
         series_list[index] = new QLineSeries(ui->chartWidget->chart());
         series_list[index]->setName(variable.first);
         series_list[index]->setProperty("color", variable.second.color);
         ui->chartWidget->addSeriesLine(series_list[index]);
         ++index;
     }
-    ++group.bound;
+    ++group->bound;
+
     // create the timer to update QChartView
     timer = new QTimer(this);
     timer->stop();
-
     connect(timer, &QTimer::timeout, this, &ChartTabWidget::timerUpdate);
 }
 
 ChartTabWidget::~ChartTabWidget() {
-    --group.bound;
+    --group->bound;
     if (logfile != nullptr) {
         logfile->close();
         logfile.reset();
@@ -91,7 +91,7 @@ void ChartTabWidget::on_logcfgBtn_clicked() {
 }
 
 void ChartTabWidget::on_startBtn_clicked() {
-    if (group.variables.empty()) {
+    if (group->variables.empty()) {
         QMessageBox::critical(this, "MESSAGE", "you can not start because the group you bound is empty!",QMessageBox::Ok);
         return;
     }
@@ -116,13 +116,13 @@ void ChartTabWidget::on_startBtn_clicked() {
 
     for (auto series: series_list) {ui->chartWidget->chart()->removeSeries(series);}
 
-    series_list.resize(group.variables.size());
+    series_list.resize(group->variables.size());
 
     QStringList csv_header;
     csv_header << "TimeStamp";
 
     int index = 0;
-    for (auto & variable: group.variables) {
+    for (auto & variable: group->variables) {
         variable.second.ring_buffers.reset();
         if (islog) csv_header << variable.first;
         series_list[index] = new QLineSeries(ui->chartWidget->chart());
@@ -133,7 +133,7 @@ void ChartTabWidget::on_startBtn_clicked() {
     }
     if (islog) writeCsv({csv_header});
 
-    ++group.used;
+    ++group->used;
 
     last_time = 0;
     freq = 0;
@@ -158,12 +158,12 @@ void ChartTabWidget::on_stopBtn_clicked() {
         logfile.reset();
     }
     timer->stop();
-    --group.used;
+    --group->used;
 }
 
 void ChartTabWidget::timerUpdate() {
     for (auto series : series_list) {
-        auto &ringbuffer = group.variables.at(series->name()).ring_buffers;
+        auto &ringbuffer = group->variables.at(series->name()).ring_buffers;
         if (ringbuffer.is_full())
             series->replace(ringbuffer.get_container());
         else
@@ -182,5 +182,9 @@ void ChartTabWidget::writeCsv(const QList<QStringList> &data) {
     for (const QStringList &row: data) {
         out << row.join(',') << "\n";
     }
+}
+
+void ChartTabWidget::startBtnEnable(bool able) {
+    ui->startBtn->setEnabled(able);
 }
 
