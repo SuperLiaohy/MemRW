@@ -35,8 +35,9 @@ MainWindow::MainWindow(QWidget *parent)
         tabWidget->setTabsClosable(true);
         connect(tabWidget, &QTabWidget::tabCloseRequested, tabWidget, [this, tabWidget](int index) {
             auto widget = (tabWidget->widget(index));
-            delete_chart(tabWidget->tabText(index));
+            auto name = tabWidget->tabText(index);
             tabWidget->removeTab(index);
+            delete_chart(name);
             if (widget!=nullptr) {widget->close();}
         });
         connect(tabWidget, &QTabWidget::currentChanged, tabWidget, [tabWidget]() {
@@ -46,8 +47,9 @@ MainWindow::MainWindow(QWidget *parent)
     };
     setupTab(ui->tableTab);
     setupTab(ui->chartTab);
-    this->dumpObjectTree();
+    ui->chartTab->dumpObjectTree();
 
+//    this->dumpObjectTree();
 }
 
 MainWindow::~MainWindow()
@@ -127,8 +129,15 @@ void MainWindow::on_actiondisplay_variable_dock_triggered() {
 }
 
 void MainWindow::on_actionadd_chart_tab_triggered() {
-    if (ui->group_treeWidget->topLevelItemCount() == 0) {
-        QMessageBox::critical(this, "MESSAGE", "You have to have at least one group.", QMessageBox::Close);
+    bool BoundEmpty = true;
+    for (auto &group: groups) {
+        if (group.second->bound==0) {
+            BoundEmpty = false;
+            break;
+        }
+    }
+    if (BoundEmpty) {
+        QMessageBox::critical(this, "MESSAGE", "You have to have at least one group no bound.", QMessageBox::Close);
         return;
     }
     create_chart();
@@ -186,7 +195,7 @@ void MainWindow::on_actionconnect_triggered() {
                 for (int chart_count = 0; chart_count < chartTabCount; ++chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
                     if (!chartTabs.count(name)) {continue;}
-                    auto& chartTabWidget = chartTabs[name];
+                    auto chartTabWidget = chartTabs[name];
                     if (!chartTabWidget->isRun()) continue;
                     charts_state.emplace(name,1);
                     for (int count = 0; count < chartTabWidget->seriesList().size(); ++count) {
@@ -326,19 +335,18 @@ void MainWindow::customGroupMenuRequested(const QPoint &pos) {
 
 void MainWindow::create_chart() {
     // create the chart dialog
-    AddChartTabDialog* dlg = new AddChartTabDialog(ui->group_treeWidget, ui->chartTab, this);
+    AddChartTabDialog* dlg = new AddChartTabDialog(groups, ui->chartTab, this);
     auto res = dlg->exec();
     // judge the return value
     if (res == QDialog::Accepted) {
+        ui->chartTab->dumpObjectTree();
         // give the group and the tabName key
-        auto groupWidget = dlg->chartGroup();
-        auto& group = groups[groupWidget->text(0)];
+        auto& group = dlg->chartGroup();
         const auto& tabName = dlg->tabName();
 
         // create chartTab
-        chartTabs.emplace(tabName, new ChartTabWidget(group,this));
+        chartTabs.emplace(tabName, new ChartTabWidget(group, nullptr));
         auto& chartTabWidget = chartTabs[tabName];
-
 
         if (is_disconnect) {chartTabWidget->startBtnEnable(false);}
 
@@ -347,6 +355,8 @@ void MainWindow::create_chart() {
 
         int tabIndex = ui->chartTab->addTab(chartTabWidget, tabName);
         ui->chartTab->setCurrentIndex(tabIndex);
+
+        ui->chartTab->dumpObjectTree();
 
     }
 }

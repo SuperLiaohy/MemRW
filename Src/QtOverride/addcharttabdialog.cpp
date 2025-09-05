@@ -11,15 +11,18 @@
 #include <QTreeWidget>
 #include <QMessageBox>
 
-AddChartTabDialog::AddChartTabDialog(QTreeWidget* group, QTabWidget *tabWidget, QWidget *parent) : QDialog(parent), tree(group), ui(new Ui::AddChartTabDialog) {
+AddChartTabDialog::AddChartTabDialog(std::unordered_map<QString, std::shared_ptr<GroupTreeWidget::Group>>& Groups, QTabWidget *tabWidget, QWidget *parent) : QDialog(parent), ui(new Ui::AddChartTabDialog),Groups(Groups) {
     ui->setupUi(this);
 
     ui->nameEdit->setText("Tab" + QString::number(tabWidget->currentIndex() + 2));
 
     QStringList groups;
-    for (int row = 0; row < tree->topLevelItemCount(); ++row) {
-        groups<<tree->topLevelItem(row)->text(0);
+
+    for (auto &group: Groups) {
+        if (group.second->bound==0)
+            groups.append(group.first);
     }
+
     ui->groupBox->addItems(groups);
     ui->groupBox->setCurrentIndex(0);
 
@@ -53,16 +56,16 @@ AddChartTabDialog::~AddChartTabDialog() {
     delete ui;
 }
 
-void AddChartTabDialog::on_groupBox_currentIndexChanged(int index) {
-    group = tree->topLevelItem(index);
-}
+//void AddChartTabDialog::on_groupBox_currentTextChanged(QString text) {
+//    Group = Groups.at(text);
+//}
 
 QString AddChartTabDialog::tabName() {
     return ui->nameEdit->text();
 }
 
-QTreeWidgetItem * AddChartTabDialog::chartGroup() {
-    return group;
+std::shared_ptr<GroupTreeWidget::Group>& AddChartTabDialog::chartGroup() {
+    return const_cast<std::shared_ptr<GroupTreeWidget::Group> &>(Groups[ui->groupBox->currentText()]);
 }
 
 int AddChartTabDialog::chartMode() {

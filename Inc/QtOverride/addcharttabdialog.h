@@ -6,6 +6,7 @@
 #define MEMRW_ADDCHARTTABDIALOG_H
 
 #include <QDialog>
+#include "groupitemadddialog.h"
 
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -22,12 +23,12 @@ class AddChartTabDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit AddChartTabDialog(QTreeWidget* group, QTabWidget *tabWidget, QWidget *parent = nullptr);
+    explicit AddChartTabDialog(std::unordered_map<QString, std::shared_ptr<GroupTreeWidget::Group>>& Groups, QTabWidget *tabWidget, QWidget *parent = nullptr);
 
     ~AddChartTabDialog() override;
 
 public slots:
-    void on_groupBox_currentIndexChanged(int index);
+//    void on_groupBox_currentTextChanged(QString string);
 
 public:
     enum mode {
@@ -37,13 +38,11 @@ public:
     };
 
     QString tabName();
-    QTreeWidgetItem* chartGroup();
+    std::shared_ptr<GroupTreeWidget::Group>& chartGroup();
     int chartMode();
 
 private:
-    QTreeWidget* tree;
-    QTreeWidgetItem* group;
-
+    std::unordered_map<QString, std::shared_ptr<GroupTreeWidget::Group>>& Groups;
 
 private:
     Ui::AddChartTabDialog *ui;

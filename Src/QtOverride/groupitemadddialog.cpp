@@ -34,7 +34,7 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
     ui->colorLabel->setText(color.name());
     ui->colorLabel->setPalette(QPalette(color));
     ui->colorLabel->setAutoFillBackground(true);
-
+    ui->sizeEdit->setReadOnly(true);
     connect(ui->buttonBox,&QDialogButtonBox::accepted,this,[this]() {
         int same = 0;
         for (int i = 0; i < itemGroup()->childCount(); ++i) {
