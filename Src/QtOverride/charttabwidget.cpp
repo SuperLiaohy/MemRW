@@ -142,7 +142,6 @@ void ChartTabWidget::on_startBtn_clicked() {
     ui->showBox->setCurrentIndex(0);
     ui->showBox->setEnabled(false);
     ui->logcfgBtn->setEnabled(false);
-
     start_time = std::chrono::high_resolution_clock::now();
     timer->start(30);
     isRunning= true;

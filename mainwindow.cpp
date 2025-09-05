@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    groups.reserve(50);
+
     ui->dwarfDock->setWindowTitle("variables");
     ui->fileEdit->setReadOnly(true);
 

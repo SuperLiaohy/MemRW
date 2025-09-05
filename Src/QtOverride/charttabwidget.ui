@@ -14,12 +14,8 @@
    <string>ChartTabWidget</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="1" column="2">
-    <widget class="QPushButton" name="logcfgBtn">
-     <property name="text">
-      <string>log config</string>
-     </property>
-    </widget>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="showBox"/>
    </item>
    <item row="1" column="1">
     <widget class="QPushButton" name="stopBtn">
@@ -35,9 +31,6 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="3">
-    <widget class="ChartWidget" name="chartWidget"/>
-   </item>
    <item row="0" column="2">
     <widget class="QLabel" name="freqLabel">
      <property name="text">
@@ -45,15 +38,22 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="1">
-    <widget class="QComboBox" name="showBox"/>
-   </item>
    <item row="0" column="0">
     <widget class="QPushButton" name="setBtn">
      <property name="text">
       <string>advanced setting</string>
      </property>
     </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QPushButton" name="logcfgBtn">
+     <property name="text">
+      <string>log config</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="0" colspan="3">
+    <widget class="ChartWidget" name="chartWidget"/>
    </item>
   </layout>
  </widget>
