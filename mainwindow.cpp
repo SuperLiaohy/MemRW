@@ -22,6 +22,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    this->setWindowIcon(QIcon(":/images/monitor.png"));
+    this->setWindowTitle("MemRW");
+
     ui->dwarfDock->setWindowTitle("variables");
     ui->fileEdit->setReadOnly(true);
 

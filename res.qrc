@@ -4,11 +4,9 @@
         <file alias="new.png">images/new.png</file>
         <file alias="connect.png">images/connect.png</file>
         <file alias="disconnect.png">images/disconnect.png</file>
+        <file alias="monitor.png">images/monitor.png</file>
     </qresource>
 <!--    <qresource prefix="/qss">-->
 <!--        <file alias="myStyle.qss">qss/myStyle.qss</file>-->
-<!--    </qresource>-->
-<!--    <qresource prefix="/ui">-->
-<!--        <file alias="calculatorform.ui">calculatorform.ui</file>-->
 <!--    </qresource>-->
 </RCC>
