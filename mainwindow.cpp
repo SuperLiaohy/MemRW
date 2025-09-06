@@ -182,6 +182,9 @@ void MainWindow::on_actionconnect_triggered() {
             for (auto &tab:chartTabs) {
                 tab.second->startBtnEnable(false);
             }
+            for (auto &tab:tableTabs) {
+                tab.second->btnEnable(false);
+            }
             ui->actionconnect->setText("connect");
             ui->actionconnect->setIcon(QIcon(":/images/connect.png"));
             ui->statusbar->showMessage("DAPlink has been disconnected");
@@ -202,6 +205,9 @@ void MainWindow::on_actionconnect_triggered() {
         }
         for (auto &tab:chartTabs) {
             tab.second->startBtnEnable(true);
+        }
+        for (auto &tab:tableTabs) {
+            tab.second->btnEnable(true);
         }
         link_thread = std::make_unique<std::thread>([this]() {
             // auto group_name = chartTabs[tabName].group;
@@ -238,6 +244,7 @@ void MainWindow::on_actionconnect_triggered() {
                     auto tableTabWidget = tableTabs[name];
                     for (auto &buf:tableTabWidget->buffer) {
                         auto &request_buf = buf.second.requests;
+                        if (request_buf->is_empty()) { continue;}
                         auto size = request_buf->size();
                         send.resize(send.size() + size);
                         request_buf->get_data(&send[send.size()-size],size);
@@ -326,17 +333,15 @@ void MainWindow::on_actionconnect_triggered() {
                     }
                     read_index+= chartTabWidget->seriesList().size() * 2;
                     if (chartTabWidget->isLog()) chartTabWidget->writeCsv({csv_data});
-
-                    for (int table_count = 0; table_count < tableTabCount; ++table_count) {
-                        auto name = ui->tableTab->tabText(table_count);
-                        if (!tableTabs.count(name)) {continue;}
-                        auto tableTabWidget = tableTabs[name];
-                        for (auto & var: tabVars[table_count]) {
-                            tableTabWidget->buffer[var.first].responses->write_data(&receive[read_index+var.second-1],1);
-                        }
-                    }
-
                     chartTabWidget->UpdateFreq();
+                }
+                for (int table_count = 0; table_count < tableTabCount; ++table_count) {
+                    auto name = ui->tableTab->tabText(table_count);
+                    if (!tableTabs.count(name)) {continue;}
+                    auto tableTabWidget = tableTabs[name];
+                    for (auto & var: tabVars[table_count]) {
+                        tableTabWidget->buffer[var.first].responses->write_data(&receive[read_index+var.second-1],1);
+                    }
                 }
                 // std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }

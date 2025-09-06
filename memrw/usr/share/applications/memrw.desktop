@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MemRW
+Comment=Memory read and write visualization tool for MCUs
+Exec=/usr/bin/memrw
+Icon=memrw
+Categories=Development;Electronics;
+Terminal=false

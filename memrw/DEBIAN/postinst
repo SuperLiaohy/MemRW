@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+ldconfig
+
+if [ -x "$(command -v update-desktop-database)" ]; then
+    update-desktop-database -q
+fi
+
+exit 0

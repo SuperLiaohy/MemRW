@@ -34,7 +34,7 @@ void TableTabWidget::load_variables() {
         QPushButton *writeBtn = new QPushButton("write", this);
 
         ui->tableWidget->setItem(row,0, new QTableWidgetItem(variable.first));
-        ui->tableWidget->setItem(row,1, new QTableWidgetItem(QString::number(1)));
+        ui->tableWidget->setItem(row,1, new QTableWidgetItem(QString("no read")));
 
         auto item = ui->tableWidget->item(row,1);
         item->setFlags(item->flags()&~Qt::ItemIsEditable);
@@ -146,8 +146,17 @@ void TableTabWidget::read_button_clicked_handle() {
     generate_response(name,variable,row);
 }
 
-void TableTabWidget::btnEnable(bool able) {
+void TableTabWidget::on_reloadBtn_clicked() {
+    load_variables();
+    btnEnable(is_enabled);
+}
 
+void TableTabWidget::btnEnable(bool able) {
+    is_enabled = able;
+    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+        ui->tableWidget->cellWidget(row,2)->setEnabled(able);
+        ui->tableWidget->cellWidget(row,4)->setEnabled(able);
+    }
 }
 
 void TableTabWidget::generate_request(const QString &name, const GroupTreeWidget::variable &variable, uint32_t data) {
@@ -194,8 +203,10 @@ void TableTabWidget::generate_response(const QString &name, const GroupTreeWidge
     buffer[name].requests->write_data(reg_request.data(), reg_request.size());
     std::vector<DAP::TransferResponse> reg_response;
     reg_response.resize(2);
-    while (!buffer[name].responses->get_data(reg_response.data(), 1)){
+    int timeout=0;
+    while (!buffer[name].responses->get_data(reg_response.data(), 1)&&timeout<1000){
         std::this_thread::sleep_for(std::chrono::microseconds(500));
+        ++timeout;
     }
     auto edit = ui->tableWidget->item(row, 1);
     switch (variable.type) {
@@ -226,4 +237,5 @@ void TableTabWidget::generate_response(const QString &name, const GroupTreeWidge
             break;
     }
 }
+
 

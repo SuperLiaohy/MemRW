@@ -77,3 +77,6 @@ CMakeLists.txt.user*
 build
 
 .idea
+
+# deb package
+app

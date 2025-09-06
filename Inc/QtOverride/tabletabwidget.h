@@ -24,6 +24,7 @@ public:
 public slots:
     void write_button_clicked_handle();
     void read_button_clicked_handle();
+    void on_reloadBtn_clicked();
 
 public:
     using request_buf = std::shared_ptr<RingBuffer<128,DAP::TransferRequest>>;
@@ -44,6 +45,7 @@ private:
     void generate_response(const QString &name, const GroupTreeWidget::variable& variable, int row);
     std::shared_ptr<GroupTreeWidget::Group> group;
     void load_variables();
+    bool is_enabled;
 
 private:
     Ui::TableTabWidget *ui;
