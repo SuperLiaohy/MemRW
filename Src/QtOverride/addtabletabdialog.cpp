@@ -26,7 +26,7 @@ AddTableTabDialog::~AddTableTabDialog() {
 }
 
 QString AddTableTabDialog::tabName() {
-    return QString();
+    return ui->nameEdit->text();
 }
 
 std::shared_ptr<GroupTreeWidget::Group> &AddTableTabDialog::chartGroup() {

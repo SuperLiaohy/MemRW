@@ -85,7 +85,7 @@ class DAPReader {
 public:
     DAPReader();
 
-    SerialDebugInterface sw;
+    static SerialDebugInterface sw;
     std::unique_ptr<USBBulk> usb;
 
     void attach_to_target();

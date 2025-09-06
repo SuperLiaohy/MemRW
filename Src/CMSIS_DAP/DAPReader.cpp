@@ -9,6 +9,9 @@
 #include <iostream>
 #include <thread>
 
+SerialDebugInterface DAPReader::sw;
+
+
 namespace {
     uint32_t DAP_INTERFACE_CLASS = 255;
 

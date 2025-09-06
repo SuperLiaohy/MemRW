@@ -153,6 +153,10 @@ void MainWindow::on_actionadd_chart_tab_triggered() {
 }
 
 void MainWindow::on_actionadd_table_tab_triggered() {
+    if (groups.empty()) {
+        QMessageBox::critical(this, "MESSAGE", "You have to have at least one group.", QMessageBox::Close);
+        return;
+    }
     auto *dlg = new AddTableTabDialog(groups,ui->tableTab, this);
     auto res = dlg->exec();
     if (res == QDialog::Accepted) {
@@ -221,8 +225,30 @@ void MainWindow::on_actionconnect_triggered() {
                         send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
                     }
                 }
+                uint32_t tab_read_index = 0;
+                auto tableTabCount = ui->tableTab->count();
+                std::vector<std::unordered_map<QString,int>> tabVars;
+                tabVars.resize(tableTabCount);
+                for (int table_count = 0; table_count < tableTabCount; ++table_count) {
+                    auto name = ui->tableTab->tabText(table_count);
+                    if (!tableTabs.count(name)) {continue;}
+                    auto tableTabWidget = tableTabs[name];
+                    for (auto &buf:tableTabWidget->buffer) {
+                        auto &request_buf = buf.second.requests;
+                        auto size = request_buf->size();
+                        send.resize(send.size() + size);
+                        request_buf->get_data(&send[send.size()-size],size);
+                        tab_read_index+=size;
+                        if (size>1 && send[send.size()-1].request.RnW == 1) {
+                            tabVars[table_count].emplace(buf.first, tab_read_index);
+                        }
+                    }
+                }
 
-                if (send.empty()) {continue;}
+                if (send.empty()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    continue;
+                }
                 receive.resize(send.size());
                 link->transfer(send, receive);
 
@@ -297,6 +323,15 @@ void MainWindow::on_actionconnect_triggered() {
                     }
                     read_index+= chartTabWidget->seriesList().size() * 2;
                     if (chartTabWidget->isLog()) chartTabWidget->writeCsv({csv_data});
+
+                    for (int table_count = 0; table_count < tableTabCount; ++table_count) {
+                        auto name = ui->tableTab->tabText(table_count);
+                        if (!tableTabs.count(name)) {continue;}
+                        auto tableTabWidget = tableTabs[name];
+                        for (auto & var: tabVars[table_count]) {
+                            tableTabWidget->buffer[var.first].responses->write_data(&receive[read_index+var.second-1],1);
+                        }
+                    }
 
                     chartTabWidget->UpdateFreq();
                 }
@@ -381,9 +416,9 @@ void MainWindow::delete_chart(const QString& tabName) {
 void MainWindow::create_table(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName) {
 
     tableTabs.emplace(tabName, new TableTabWidget(group, nullptr));
-    auto& tableTabWidget = chartTabs[tabName];
+    auto& tableTabWidget = tableTabs[tabName];
 
-    if (is_disconnect) {tableTabWidget->startBtnEnable(false);}
+    if (is_disconnect) {tableTabWidget->btnEnable(false);}
 
     tableTabWidget->setAttribute(Qt::WA_DeleteOnClose);
 

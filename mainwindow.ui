@@ -15,10 +15,10 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="1" column="0">
-     <widget class="QTabWidget" name="tableTab">
+    <item row="0" column="0">
+     <widget class="QTabWidget" name="chartTab">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -28,10 +28,10 @@
       </property>
      </widget>
     </item>
-    <item row="0" column="0">
-     <widget class="QTabWidget" name="chartTab">
+    <item row="1" column="0">
+     <widget class="QTabWidget" name="tableTab">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
@@ -49,7 +49,7 @@
      <x>0</x>
      <y>0</y>
      <width>886</width>
-     <height>21</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menudisplay">
