@@ -20,7 +20,7 @@ class QFile;
 class QCheckBox;
 class TreeModel;
 class ChartTabWidget;
-
+class TableTabWidget;
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -54,6 +54,9 @@ private:
     void create_chart();
     void delete_chart(const QString& tabName);
 
+    void create_table(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName);
+    void delete_table(const QString& tabName);
+
     void create_group();
     void delete_group(QTreeWidgetItem* group);
 
@@ -63,6 +66,7 @@ private:
 
     std::unordered_map<QString, std::shared_ptr<GroupTreeWidget::Group>> groups;
     std::unordered_map<QString, ChartTabWidget*> chartTabs;
+    std::unordered_map<QString, TableTabWidget*> tableTabs;
     std::unique_ptr<std::thread> link_thread;
     std::unique_ptr<DAPReader> link;
     bool is_closing{false};

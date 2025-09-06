@@ -12,7 +12,8 @@
 #include "groupitemadddialog.h"
 #include "addcharttabdialog.h"
 #include "charttabwidget.h"
-
+#include "addtabletabdialog.h"
+#include "tabletabwidget.h"
 std::shared_ptr<VariTree> get_addr_task(const std::string& file);
 
 MainWindow::MainWindow(QWidget *parent)
@@ -33,23 +34,31 @@ MainWindow::MainWindow(QWidget *parent)
     auto setupTab = [this](QTabWidget *tabWidget) {
         if (tabWidget->count()==0) tabWidget->hide();
         tabWidget->setTabsClosable(true);
-        connect(tabWidget, &QTabWidget::tabCloseRequested, tabWidget, [this, tabWidget](int index) {
-            auto widget = (tabWidget->widget(index));
-            auto name = tabWidget->tabText(index);
-            tabWidget->removeTab(index);
-            delete_chart(name);
-            if (widget!=nullptr) {widget->close();}
-        });
         connect(tabWidget, &QTabWidget::currentChanged, tabWidget, [tabWidget]() {
             if (tabWidget->count() == 0) tabWidget->hide();
             else tabWidget->show();
         });
     };
     setupTab(ui->tableTab);
-    setupTab(ui->chartTab);
-    ui->chartTab->dumpObjectTree();
+    connect(ui->tableTab, &QTabWidget::tabCloseRequested, this, [this](int index) {
+        auto widget = (ui->tableTab->widget(index));
+        auto name = ui->tableTab->tabText(index);
+        ui->tableTab->removeTab(index);
+        delete_table(name);
+        if (widget!=nullptr) {widget->close();}
+    });
 
-//    this->dumpObjectTree();
+    setupTab(ui->chartTab);
+    connect(ui->chartTab, &QTabWidget::tabCloseRequested, this, [this](int index) {
+        auto widget = (ui->chartTab->widget(index));
+        auto name = ui->chartTab->tabText(index);
+        ui->chartTab->removeTab(index);
+        delete_chart(name);
+        if (widget!=nullptr) {widget->close();}
+    });
+
+
+    this->dumpObjectTree();
 }
 
 MainWindow::~MainWindow()
@@ -144,6 +153,13 @@ void MainWindow::on_actionadd_chart_tab_triggered() {
 }
 
 void MainWindow::on_actionadd_table_tab_triggered() {
+    auto *dlg = new AddTableTabDialog(groups,ui->tableTab, this);
+    auto res = dlg->exec();
+    if (res == QDialog::Accepted) {
+        auto &group = dlg->chartGroup();
+        const auto &name = dlg->tabName();
+        create_table(group, name);
+    }
 }
 
 void MainWindow::on_actionconnect_triggered() {
@@ -314,7 +330,6 @@ void MainWindow::on_group_treeWidget_doubleClicked(const QModelIndex &index) {
         item->setText(4, color.name());
         item->setData(4, Qt::BackgroundRole, color);
     }
-
 }
 
 void MainWindow::customGroupMenuRequested(const QPoint &pos) {
@@ -356,13 +371,28 @@ void MainWindow::create_chart() {
         int tabIndex = ui->chartTab->addTab(chartTabWidget, tabName);
         ui->chartTab->setCurrentIndex(tabIndex);
 
-        ui->chartTab->dumpObjectTree();
-
     }
 }
 
 void MainWindow::delete_chart(const QString& tabName) {
     chartTabs.erase(tabName);
+}
+
+void MainWindow::create_table(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName) {
+
+    tableTabs.emplace(tabName, new TableTabWidget(group, nullptr));
+    auto& tableTabWidget = chartTabs[tabName];
+
+    if (is_disconnect) {tableTabWidget->startBtnEnable(false);}
+
+    tableTabWidget->setAttribute(Qt::WA_DeleteOnClose);
+
+    int tabIndex = ui->tableTab->addTab(tableTabWidget,tabName);
+    ui->tableTab->setCurrentIndex(tabIndex);
+}
+
+void MainWindow::delete_table(const QString &tabName) {
+    tableTabs.erase(tabName);
 }
 
 void MainWindow::create_group() {
@@ -419,3 +449,4 @@ void MainWindow::remove_item(QTreeWidgetItem* item) {
     groups[group->text(0)]->variables.erase(item->text(0));
     group->removeChild(ui->group_treeWidget->currentItem());
 }
+

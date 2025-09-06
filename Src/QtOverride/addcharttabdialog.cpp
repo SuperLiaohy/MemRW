@@ -65,7 +65,7 @@ QString AddChartTabDialog::tabName() {
 }
 
 std::shared_ptr<GroupTreeWidget::Group>& AddChartTabDialog::chartGroup() {
-    return const_cast<std::shared_ptr<GroupTreeWidget::Group> &>(Groups[ui->groupBox->currentText()]);
+    return Groups[ui->groupBox->currentText()];
 }
 
 int AddChartTabDialog::chartMode() {
