@@ -493,6 +493,7 @@ void MainWindow::on_group_treeWidget_doubleClicked(const QModelIndex &index) {
     if (color.isValid()) {
         item->setText(4, color.name());
         item->setData(4, Qt::BackgroundRole, color);
+        groups[item->parent()->text(0)]->variables[item->text(0)].color = color;
     }
 }
 
