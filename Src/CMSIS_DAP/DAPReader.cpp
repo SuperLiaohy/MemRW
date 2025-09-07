@@ -122,8 +122,8 @@ void DAPReader::attach_to_target() {
     this->set_swj_sequence({0x00});
     DAP::TransferResponse response{};
     this->transfer(DPReadRequest(SW::DP::IDCODE), response);
-    std::cout << "DPIDR: " << std::hex << response.data << std::dec << std::endl;
-    auto idr = std::bit_cast<SW::DP::IDCODEReg>(response.data);
+    std::cout << "DPIDR: " << std::hex << response.bit_data.u32 << std::dec << std::endl;
+    auto idr = std::bit_cast<SW::DP::IDCODEReg>(response.bit_data);
     std::cout << idr << std::endl;
     SW::DP::ABORTReg abort{};
     abort.DAPABORT = 0;
@@ -136,10 +136,10 @@ void DAPReader::attach_to_target() {
     cs.CSYSPWRUPREQ = 1;
     cs.CDBGPWRUPREQ = 1;
     this->transfer(DPWriteRequest(SW::DP::CTRL_STAT, std::bit_cast<uint32_t>(cs)), response);
-    response.data = 0;
+    response.bit_data.u32 = 0;
     for (int i = 0; i < 10; ++i) {
         this->transfer(DPReadRequest(SW::DP::CTRL_STAT), response);
-        auto cs_feedback = std::bit_cast<SW::DP::CTRL_STATReg>(response.data);
+        auto cs_feedback = std::bit_cast<SW::DP::CTRL_STATReg>(response.bit_data.u32);
         if (cs_feedback.CDBGPWRUPACK == 1 && cs_feedback.CSYSPWRUPACK == 1) {
             std::cout << "Debug interface domain is powered up." << std::endl;
             return;
@@ -165,7 +165,7 @@ uint32_t DAPReader::read_mem(uint32_t addr) {
     // }
     this->transfer({APWriteRequest(SW::MEM_AP::TAR, addr), APReadRequest(SW::MEM_AP::DRW)}, responses);
     // sw.ap.tar = std::make_optional<SW::MEM_AP::TARReg>(addr+4);
-    return responses[1].data;
+    return responses[1].bit_data.u32;
 }
 
 void DAPReader::auto_configure_ap() {
@@ -180,14 +180,22 @@ void DAPReader::auto_configure_ap() {
         this->transfer(DPWriteRequest(SW::DP::SELECT, std::bit_cast<uint32_t>(sw.dp.select.value())), response);
         std::cout << "--------------APSEL:" << static_cast<uint32_t>(APSEL) << "--------------" << std::endl;
         this->transfer(APReadRequest(SW::MEM_AP::IDR), response);
-        sw.ap.idr = std::bit_cast<SW::MEM_AP::IDRReg>(response.data);
+        sw.ap.idr = std::bit_cast<SW::MEM_AP::IDRReg>(response.bit_data.u32);
         std::cout << sw.ap.idr.value() << std::endl;
         if (sw.ap.idr->CLASS == 0b1000) found_MEM_AP = true;
         sw.dp.select->APBANKSEL = 0x0;
         this->transfer(DPWriteRequest(SW::DP::SELECT, std::bit_cast<uint32_t>(sw.dp.select.value())), response);
         this->transfer(APReadRequest(SW::MEM_AP::CSW), response);
-        sw.ap.csw = std::bit_cast<SW::MEM_AP::CSWReg>(response.data);
+        sw.ap.csw = std::bit_cast<SW::MEM_AP::CSWReg>(response.bit_data);
         std::cout << sw.ap.csw.value() << std::endl;
+
+        sw.ap.csw->AddrInc = 0b01;
+        this->transfer(APWriteRequest(SW::MEM_AP::CSW,std::bit_cast<uint32_t>(sw.ap.csw.value())), response);
+
+        this->transfer(APReadRequest(SW::MEM_AP::CSW), response);
+        sw.ap.csw = std::bit_cast<SW::MEM_AP::CSWReg>(response.bit_data);
+        std::cout << sw.ap.csw.value() << std::endl;
+
         // csw.DbgSwEnable = 1;
         // csw.AddrInc = 1;
         // this->transfer(APWriteRequest(SW::MEM_AP::CSW, std::bit_cast<uint32_t>(csw)), response);
@@ -195,6 +203,8 @@ void DAPReader::auto_configure_ap() {
         // csw = std::bit_cast<SW::MEM_AP::CSWReg>(response.data);
         // std::cout << csw << std::endl;
         ++APSEL;
+        if (APSEL>100)
+            break;
     }
 }
 
@@ -258,7 +268,7 @@ int DAPReader::transfer(const DAP::TransferRequest &requests, DAP::TransferRespo
         responses.TimeStamp = word[index++];
     }
     if (requests.request.RnW == 1 && requests.request.ValueMatch == 0)
-        responses.data = word[index++];
+        responses.bit_data.u32 = word[index++];
     return response_buffer[2];
 }
 
@@ -293,7 +303,7 @@ int DAPReader::transfer(const std::vector<DAP::TransferRequest> &requests,
             responses[i].TimeStamp = word[index++];
         }
         if (requests[i].request.RnW == 1 && requests[i].request.ValueMatch == 0)
-            responses[i].data = word[index++];
+            responses[i].bit_data.u32 = word[index++];
     }
     return response_buffer[2];
 }

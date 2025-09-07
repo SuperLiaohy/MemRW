@@ -213,28 +213,61 @@ void MainWindow::on_actionconnect_triggered() {
             // auto group_name = chartTabs[tabName].group;
             std::vector<DAP::TransferRequest> send;
             std::vector<DAP::TransferResponse> receive(255);
+            std::map<uint32_t ,all_form > addrMap;
+            std::vector<bool> read_flag;
             send.reserve(255);
+            read_flag.reserve(255);
             while (true) {
                 if (is_closing) { return; }
                 if (is_disconnect) { return; }
                 send.clear();
                 receive.clear();
+                addrMap.clear();
+                read_flag.clear();
+
                 auto chartTabCount = ui->chartTab->count();
-                std::unordered_map<QString,int> charts_state;
+                std::vector<QString> charts_state;
                 for (int chart_count = 0; chart_count < chartTabCount; ++chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
                     if (!chartTabs.count(name)) {continue;}
                     auto chartTabWidget = chartTabs[name];
                     if (!chartTabWidget->isRun()) continue;
-                    charts_state.emplace(name,1);
+                    charts_state.push_back(name);
                     for (int count = 0; count < chartTabWidget->seriesList().size(); ++count) {
                         const auto &variable_name = chartTabWidget->seriesList()[count]->name();
                         const auto &variable = chartTabWidget->GroupBound()->variables.at(variable_name);
-                        send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, static_cast<uint32_t>(variable.address)));
-                        send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
+                        uint32_t addr_base = variable.address&0xfffffffC;
+                        addrMap.emplace(addr_base,all_form{});
+                        if (((variable.address&0x00000003)+variable.size())>4) {
+                            addrMap.emplace(addr_base + 4, all_form{});
+                            if (((variable.address&0x00000003)+variable.size())>8)
+                                addrMap.emplace(addr_base + 8, all_form{});
+                        }
                     }
                 }
-                uint32_t tab_read_index = 0;
+
+                for (auto &addr_item:addrMap) {
+                    if (DAPReader::sw.ap.tar.has_value()) {
+                        if (DAPReader::sw.ap.tar->data != addr_item.first) {
+                            send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, addr_item.first));
+                            read_flag.push_back(false);
+                        }
+                        DAPReader::sw.ap.tar->data = addr_item.first+4;
+                        if ((DAPReader::sw.ap.tar->data)&(0x400-1)) {
+                            DAPReader::sw.ap.tar.reset();
+                        }
+                    } else {
+                        send.push_back(DAPReader::APWriteRequest(SW::MEM_AP::TAR, addr_item.first));
+                        read_flag.push_back(false);
+                        DAPReader::sw.ap.tar = SW::MEM_AP::TARReg(addr_item.first+4);
+                        if ((DAPReader::sw.ap.tar->data)&(0x400-1)) {
+                            DAPReader::sw.ap.tar.reset();
+                        }
+                    }
+                    send.push_back(DAPReader::APReadRequest(SW::MEM_AP::DRW));
+                    read_flag.push_back(true);
+                }
+
                 auto tableTabCount = ui->tableTab->count();
                 std::vector<std::unordered_map<QString,int>> tabVars;
                 tabVars.resize(tableTabCount);
@@ -248,12 +281,12 @@ void MainWindow::on_actionconnect_triggered() {
                         auto size = request_buf->size();
                         send.resize(send.size() + size);
                         request_buf->get_data(&send[send.size()-size],size);
-                        tab_read_index+=size;
                         if (size>1 && send[send.size()-1].request.RnW == 1) {
-                            tabVars[table_count].emplace(buf.first, tab_read_index);
+                            tabVars[table_count].emplace(buf.first, send.size()-1);
                         }
                     }
                 }
+                DAPReader::sw.ap.tar.reset();
 
                 if (send.empty()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -262,12 +295,21 @@ void MainWindow::on_actionconnect_triggered() {
                 receive.resize(send.size());
                 link->transfer(send, receive);
 
+                int flag_index = 0;
+                for (auto &addr:addrMap) {
+                    while (!read_flag[flag_index])
+                        ++flag_index;
+                    addr.second = receive[flag_index].bit_data;
+                    ++flag_index;
+                }
+
+
                 auto time = std::chrono::high_resolution_clock::now();
-                int read_index = 0;
-                for (int chart_count = 0; chart_count < chartTabCount; ++chart_count) {
+                for (int chart_count = chartTabCount - 1; chart_count >= 0; --chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
                     if (!chartTabs.count(name)) {continue;}
-                    if (!charts_state.count(name)) {continue;}
+                    if (charts_state[charts_state.size()-1]!=name) {continue;}
+                    charts_state.pop_back();
                     auto chartTabWidget = chartTabs[name];
                     QStringList csv_data;
                     auto time_spent = chartTabWidget->TimeStamp(time);
@@ -275,51 +317,130 @@ void MainWindow::on_actionconnect_triggered() {
                     for (int count = 0; count < chartTabWidget->seriesList().size(); ++count) {
                         auto &variable = chartTabWidget->GroupBound()->variables[chartTabWidget->seriesList()[count]->name()];
                         auto &ringbuffer = variable.ring_buffers;
+                        uint32_t addr_base = variable.address&0xfffffffc;
+                        uint8_t addr_offset = variable.address&0x3;
                         switch (variable.type) {
                             case GroupItemAddDialog::Type::INT8: {
-                                int8_t data = receive[read_index+count * 2 + 1].data8i[0];
+                                int8_t data = addrMap[addr_base].i8[addr_offset];
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::UINT8: {
-                                uint8_t data = receive[read_index+count * 2 + 1].data8u[0];
+                                uint8_t data = addrMap[addr_base].u8[addr_offset];;
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::INT16: {
-                                int16_t data = receive[read_index+count * 2 + 1].data16i[0];
+                                int16_t data = 0;
+                                if (addr_offset > 2)
+                                    data = std::bit_cast<int16_t>(static_cast<uint16_t>((addrMap[addr_base].u8[addr_offset] | addrMap[addr_base + 4].u8[0] << 8)));
+                                else
+                                    data = std::bit_cast<int16_t>(static_cast<uint16_t>((addrMap[addr_base].u8[addr_offset] | addrMap[addr_base].u8[addr_offset+1] << 8)));
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::UINT16: {
-                                int16_t data = receive[read_index+count * 2 + 1].data16u[0];
+                                uint16_t data = 0;
+                                if (addr_offset > 2)
+                                    data = (static_cast<uint16_t>((addrMap[addr_base].u8[addr_offset] | addrMap[addr_base + 4].u8[0] << 8)));
+                                else
+                                    data = (static_cast<uint16_t>((addrMap[addr_base].u8[addr_offset] | addrMap[addr_base].u8[addr_offset+1] << 8)));
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::INT32: {
-                                int32_t data = receive[read_index+count * 2 + 1].data32i;
+                                int32_t data = 0;
+                                switch (addr_offset) {
+                                    case 0:
+                                        data = addrMap[addr_base].i32;
+                                        break;
+                                    case 1:
+                                        data = static_cast<int32_t>(addrMap[addr_base].u8[1]
+                                                | addrMap[addr_base].u8[2] << 8
+                                                | addrMap[addr_base].u8[3] << 16
+                                                | addrMap[addr_base+4].u8[0] << 24);
+                                        break;
+                                    case 2:
+                                        data = static_cast<int32_t>(addrMap[addr_base].u16[1]
+                                                | addrMap[addr_base+4].u16[0] << 16);
+                                        break;
+                                    case 3:
+                                        data = static_cast<int32_t>(addrMap[addr_base].u8[3]
+                                                | addrMap[addr_base+4].u8[0] << 8
+                                                | addrMap[addr_base+4].u8[1] << 16
+                                                | addrMap[addr_base+4].u8[2] << 24);
+                                        break;
+                                    default:
+                                        break;
+                                }
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::UINT32: {
-                                uint32_t data = receive[read_index+count * 2 + 1].data;
+                                uint32_t data = 0;
+                                switch (addr_offset) {
+                                    case 0:
+                                        data = addrMap[addr_base].u32;
+                                        break;
+                                    case 1:
+                                        data = (addrMap[addr_base].u8[1]
+                                                | addrMap[addr_base].u8[2] << 8
+                                                | addrMap[addr_base].u8[3] << 16
+                                                | addrMap[addr_base + 4].u8[0] << 24);
+                                        break;
+                                    case 2:
+                                        data = (addrMap[addr_base].u16[1]
+                                                | addrMap[addr_base + 4].u16[0] << 16);
+                                        break;
+                                    case 3:
+                                        data = (addrMap[addr_base].u8[3]
+                                                | addrMap[addr_base + 4].u8[0] << 8
+                                                | addrMap[addr_base + 4].u8[1] << 16
+                                                | addrMap[addr_base + 4].u8[2] << 24);
+                                        break;
+                                    default:
+                                        break;
+                                }
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
                             }
                             break;
                             case GroupItemAddDialog::Type::FLOAT: {
-                                float data = receive[read_index+count * 2 + 1].data32f;
+                                float data = 0;
+                                switch (addr_offset) {
+                                    case 0:
+                                        data = addrMap[addr_base].f32;
+                                        break;
+                                    case 1:
+                                        data = std::bit_cast<float>(addrMap[addr_base].u8[1]
+                                                | addrMap[addr_base].u8[2] << 8
+                                                | addrMap[addr_base].u8[3] << 16
+                                                | addrMap[addr_base + 4].u8[0] << 24);
+                                        break;
+                                    case 2:
+                                        data = std::bit_cast<float>(addrMap[addr_base].u16[1]
+                                                | addrMap[addr_base + 4].u16[0] << 16);
+                                        break;
+                                    case 3:
+                                        data = std::bit_cast<float>(addrMap[addr_base].u8[3]
+                                                | addrMap[addr_base + 4].u8[0] << 8
+                                                | addrMap[addr_base + 4].u8[1] << 16
+                                                | addrMap[addr_base + 4].u8[2] << 24);
+                                        break;
+                                    default:
+                                        break;
+                                }
                                 auto point = QPointF(time_spent, data);
                                 ringbuffer.write_data_force(&point, 1);
                                 if (chartTabWidget->isLog()) { csv_data.append(QString::number(data)); }
@@ -331,16 +452,16 @@ void MainWindow::on_actionconnect_triggered() {
                                 break;
                         }
                     }
-                    read_index+= chartTabWidget->seriesList().size() * 2;
                     if (chartTabWidget->isLog()) chartTabWidget->writeCsv({csv_data});
                     chartTabWidget->UpdateFreq();
                 }
+
                 for (int table_count = 0; table_count < tableTabCount; ++table_count) {
                     auto name = ui->tableTab->tabText(table_count);
                     if (!tableTabs.count(name)) {continue;}
                     auto tableTabWidget = tableTabs[name];
                     for (auto & var: tabVars[table_count]) {
-                        tableTabWidget->buffer[var.first].responses->write_data(&receive[read_index+var.second-1],1);
+                        tableTabWidget->buffer[var.first].responses->write_data(&receive[var.second],1);
                     }
                 }
                 // std::this_thread::sleep_for(std::chrono::milliseconds(1));

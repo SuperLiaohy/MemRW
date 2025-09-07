@@ -57,6 +57,24 @@ namespace GroupTreeWidget {
         GroupItemAddDialog::Type type{GroupItemAddDialog::Type::INT32};
         QColor color;
         RingBuffer<8000, QPointF, QList<QPointF>> ring_buffers;
+        uint8_t size() const {
+            switch (type) {
+                case GroupItemAddDialog::Type::INT8:
+                case GroupItemAddDialog::Type::UINT8:
+                    return 1;
+                case GroupItemAddDialog::Type::INT16:
+                case GroupItemAddDialog::Type::UINT16:
+                    return 2;
+                case GroupItemAddDialog::Type::INT32:
+                case GroupItemAddDialog::Type::UINT32:
+                case GroupItemAddDialog::Type::FLOAT:
+                    return 4;
+                case GroupItemAddDialog::Type::INT64:
+                case GroupItemAddDialog::Type::UINT64:
+                case GroupItemAddDialog::Type::DOUBLE:
+                    return 8;
+            }
+        }
     };
     struct Group {
         int bound{};

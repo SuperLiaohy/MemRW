@@ -9,6 +9,7 @@
 
 #include "groupitemadddialog.h"
 #include "DAPReader.h"
+#include <QMessageBox>
 QT_BEGIN_NAMESPACE
 namespace Ui { class TableTabWidget; }
 QT_END_NAMESPACE
@@ -45,6 +46,9 @@ private:
     void generate_response(const QString &name, const GroupTreeWidget::variable& variable, int row);
     std::shared_ptr<GroupTreeWidget::Group> group;
     void load_variables();
+    void critical(QString str){
+        QMessageBox::critical(this,"MESSAGE", str, QMessageBox::Ok);
+    };
     bool is_enabled;
 
 private:
