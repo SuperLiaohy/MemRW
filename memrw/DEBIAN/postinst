@@ -1,10 +1,22 @@
 #!/bin/sh
 set -e
 
+# 创建库路径配置
+if [ ! -d /etc/ld.so.conf.d ]; then
+    mkdir -p /etc/ld.so.conf.d
+fi
+echo "/usr/lib/memrw" > /etc/ld.so.conf.d/memrw.conf
+
 ldconfig
 
 if [ -x "$(command -v update-desktop-database)" ]; then
     update-desktop-database -q
 fi
+
+if [ -x /bin/udevadm ] || [ -x /sbin/udevadm ]; then
+    udevadm control --reload-rules || true
+    udevadm trigger || true
+fi
+
 
 exit 0

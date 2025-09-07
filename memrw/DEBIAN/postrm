@@ -3,7 +3,15 @@ set -e
 
 
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+
+    rm -f /etc/ld.so.conf.d/memrw.conf
+
     ldconfig
+
+    # 重新加载 udev 规则
+    if [ -x /bin/udevadm ] || [ -x /sbin/udevadm ]; then
+        udevadm control --reload-rules || true
+    fi
 fi
 
 exit 0
