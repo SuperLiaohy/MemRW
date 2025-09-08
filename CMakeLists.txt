@@ -75,20 +75,24 @@ target_include_directories(MemRW PRIVATE
 find_package(libdwarf CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE libdwarf::dwarf)
 
+# find_package(libusb REQUIRED)
+# target_link_libraries(${PROJECT_NAME} PRIVATE libusb::libusb)
+
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 target_include_directories(${PROJECT_NAME} PRIVATE ${LIBUSB_INCLUDE_DIRS})
+target_link_directories(MemRW PRIVATE ${LIBUSB_LIBRARY_DIRS})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBUSB_LIBRARIES})
 target_compile_options(${PROJECT_NAME} PRIVATE ${LIBUSB_CFLAGS_OTHER})
-message(STATUS libusb-- "${LIBUSB_INCLUDE_DIRS}")
+# message(STATUS libusb-- "${LIBUSB_INCLUDE_DIRS}")
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Charts)
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt${QT_VERSION_MAJOR}::Charts)
 
-find_path(CHARTWIDGET_INCLUDE_DIR NAMES ChartWidget/chartwidget.h)
-find_library(CHARTWIDGET_LIBRARY NAMES ChartWidget)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${CHARTWIDGET_LIBRARY})
-target_include_directories(MemRW PRIVATE ${CHARTWIDGET_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE "D:/Qt6/6.9.2/Own/include")
+target_link_directories(${PROJECT_NAME} PRIVATE "D:/Qt6/6.9.2/Own/lib")
+target_link_libraries(${PROJECT_NAME} PRIVATE ChartWidget)
 
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

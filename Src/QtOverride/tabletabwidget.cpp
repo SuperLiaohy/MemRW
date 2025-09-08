@@ -27,6 +27,7 @@ TableTabWidget::~TableTabWidget() {
 void TableTabWidget::load_variables() {
     int row = 0;
 
+    ui->tableWidget->setRowCount(0);
     ui->tableWidget->setRowCount(group->variables.size());
     for (auto &variable:group->variables) {
         buffer.emplace(variable.first,buf{});

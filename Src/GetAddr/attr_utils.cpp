@@ -156,8 +156,8 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
     switch (tag) {
         case DW_TAG_typedef:
              std::tie(res, recursion_name) = get_die_type(dbg, type_die);
-            dwarf_dealloc_die(type_die);
             if (recursion_name.find("<anonymous")!=std::string::npos) {break;}
+            dwarf_dealloc_die(type_die);
             return std::tuple{res, recursion_name};
         // case DW_TAG_base_type:
         //     display_single_die(dbg,type_die);
