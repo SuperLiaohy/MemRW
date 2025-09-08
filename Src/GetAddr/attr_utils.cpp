@@ -179,6 +179,7 @@ std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
                             Dwarf_Unsigned count = 0;
                             res = dw_error_check(dwarf_attr(die, DW_AT_upper_bound, &attr, &error), dbg, error);
                             if (res != DW_DLV_OK) {res = dw_error_check(dwarf_attr(die, DW_AT_lower_bound, &attr, &error), dbg, error);}
+                            if (attr== nullptr) return;
                             res = dw_error_check(dwarf_formudata(attr, &count, &error), dbg, error);
                             if (res == DW_DLV_OK) {
                                 ++count;
