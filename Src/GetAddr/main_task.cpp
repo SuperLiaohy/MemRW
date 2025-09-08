@@ -47,6 +47,9 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file) {
     Dwarf_Half cu_type = 0;
 
     std::string cu_name;
+    std::string last_cu_name;
+    std::shared_ptr<VariNode> cu_node;
+
     while (true) {
         res = dwarf_next_cu_header_e(dbg, is_info,
                                      &cu_die,
@@ -64,8 +67,10 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file) {
             std::tie(res, cu_name) = get_die_name(dbg, cu_die);
 
             if (res == DW_DLV_OK) {
-                auto cu_node = std::make_shared<VariNode>(std::string(cu_name),std::string("cu"), 0);
-                dwarf.add_child(cu_node);
+                if (last_cu_name != cu_name || last_cu_name.empty()) {
+                    cu_node = std::make_shared<VariNode>(std::string(cu_name),std::string("cu"), 0);
+                    dwarf.add_child(cu_node);
+                }
                 std::cout << "cu name: " << cu_node->name << std::endl;
                 std::cout << "--------------------------------------" << std::endl;
                 if (res == DW_DLV_OK) {
@@ -80,15 +85,18 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file) {
                         if (tag!=DW_TAG_variable || res != DW_DLV_OK ) {return;}
                         std::tie(res, name) = get_die_name(dbg, die);
                         if (res != DW_DLV_OK) {return;}
+
+
+                        std::tie(res, type) = get_die_type(dbg, die);
+                        if (res != DW_DLV_OK) {return;}
+                        std::cout << "direct type: " << type << std::endl;
+
                         std::tie(res, addr, opcode) = get_die_location(dbg, die);
                         if (res != DW_DLV_OK || addr == 0) {return;}
                         std::cout << "--------------------" << std::endl;
                         std::cout << "var name: " << name << std::endl;
                         std::cout << "opcode: " << opcode << "\taddr: " << std::hex <<  addr << std::dec << std::endl;
 
-                        std::tie(res, type) = get_die_type(dbg, die);
-                        if (res != DW_DLV_OK) {return;}
-                        std::cout << "direct type: " << type << std::endl;
                         auto child_node = std::make_shared<VariNode>(std::string(name), std::string(type), addr);
                         cu_node->add_child(child_node);
 
@@ -155,6 +163,8 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file) {
                 }
                 if (cu_node->node.empty()) {
                     dwarf.root->node.pop_back();
+                } else {
+                    last_cu_name = cu_name;
                 }
             } else {
                 std::cout << "--------------------------------------" << std::endl;
