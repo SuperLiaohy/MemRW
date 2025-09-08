@@ -308,6 +308,7 @@ void MainWindow::on_actionconnect_triggered() {
                 for (int chart_count = chartTabCount - 1; chart_count >= 0; --chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
                     if (!chartTabs.count(name)) {continue;}
+                    if (charts_state.empty()) {continue;}
                     if (charts_state[charts_state.size()-1]!=name) {continue;}
                     charts_state.pop_back();
                     auto chartTabWidget = chartTabs[name];

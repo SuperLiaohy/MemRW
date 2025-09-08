@@ -297,12 +297,12 @@ int display_tag_name(Dwarf_Debug dbg, Dwarf_Die cur_die) {
     }
 
     if (tag == DW_TAG_member) {
-    std::cout << "--" << std::endl;
+        std::cout << "--" << std::endl;
         std::cout << "member: ";
         res = display_die_name(dbg, cur_die);
         std::cout << "member: ";
         display_full_type(dbg, cur_die);
-    std::cout << "--" << std::endl;
+        std::cout << "--" << std::endl;
 
     } else if (tag == DW_TAG_inheritance) {
         std::cout << "--" << std::endl;
