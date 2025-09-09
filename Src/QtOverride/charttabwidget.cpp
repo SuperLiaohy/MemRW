@@ -185,9 +185,9 @@ void ChartTabWidget::on_setBtn_clicked() {
 void ChartTabWidget::timerUpdate() {
     for (auto series : series_list) {
         auto &ringbuffer = group->variables.at(series->name()).ring_buffers;
-        if (ringbuffer.is_full())
-            series->replace(ringbuffer.get_container());
-        else
+//        if (ringbuffer.is_full())
+//            series->replace(ringbuffer.get_container());
+//        else
             series->replace(ringbuffer.get_valid_container());
     }
     auto time = std::chrono::duration_cast<std::chrono::microseconds>(
