@@ -8,7 +8,7 @@
 #include "ui_charttabwidget.h"
 
 #include "datalogdialog.h"
-
+#include "chartsettingdialog.h"
 ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& group, QWidget *parent) :
         QWidget(parent), ui(new Ui::ChartTabWidget), group(group) {
     ui->setupUi(this);
@@ -132,7 +132,9 @@ void ChartTabWidget::on_startBtn_clicked() {
         ++index;
     }
     if (islog) writeCsv({csv_header});
-
+    ui->showBox->setEnabled(false);
+    ui->setBtn->setEnabled(false);
+    ui->logcfgBtn->setEnabled(false);
     ++group->used;
 
     last_time = 0;
@@ -140,8 +142,7 @@ void ChartTabWidget::on_startBtn_clicked() {
 
     ui->chartWidget->loadDefaultRange();
     ui->showBox->setCurrentIndex(0);
-    ui->showBox->setEnabled(false);
-    ui->logcfgBtn->setEnabled(false);
+
     start_time = std::chrono::high_resolution_clock::now();
     timer->start(30);
     isRunning= true;
@@ -153,6 +154,7 @@ void ChartTabWidget::on_stopBtn_clicked() {
     isRunning= false;
     ui->logcfgBtn->setEnabled(true);
     ui->showBox->setEnabled(true);
+    ui->setBtn->setEnabled(true);
     if (logfile != nullptr) {
         logfile->close();
         logfile.reset();
@@ -160,6 +162,25 @@ void ChartTabWidget::on_stopBtn_clicked() {
     timer->stop();
     --group->used;
 }
+
+void ChartTabWidget::on_setBtn_clicked() {
+    auto xMin = ui->chartWidget->x_min();
+    auto xMax = ui->chartWidget->x_max();
+    auto yMin = ui->chartWidget->y_min();
+    auto yMax = ui->chartWidget->y_max();
+
+    ChartSettingDialog *dlg = new ChartSettingDialog(xMin,xMax,yMin,yMax,group->variables[0].ring_buffers.capacity(),
+                                                     this);
+    if (dlg->exec()==QDialog::Accepted) {
+        ui->chartWidget->changeDefaultX(dlg->xMin(),dlg->xMax());
+        ui->chartWidget->changeDefaultY(dlg->yMin(),dlg->yMax());
+        for (auto& variable : group->variables) {
+            variable.second.ring_buffers.change_capacity(dlg->bufferSize());
+
+        }
+    }
+}
+
 
 void ChartTabWidget::timerUpdate() {
     for (auto series : series_list) {

@@ -16,7 +16,7 @@ class ChartSettingDialog : public QDialog {
 Q_OBJECT
 
 public:
-    explicit ChartSettingDialog(QWidget *parent = nullptr);
+    explicit ChartSettingDialog(double xMin, double xMax, double yMin, double yMax, uint32_t buffer_size, QWidget *parent = nullptr);
 
     ~ChartSettingDialog() override;
 public:

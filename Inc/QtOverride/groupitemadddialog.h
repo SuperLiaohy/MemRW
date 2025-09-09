@@ -56,7 +56,7 @@ namespace GroupTreeWidget {
         uint64_t address{};
         GroupItemAddDialog::Type type{GroupItemAddDialog::Type::INT32};
         QColor color;
-        RingBuffer<8000, QPointF, QList<QPointF>> ring_buffers;
+        RingBufferDynamic<QPointF, QList<QPointF>> ring_buffers{8000};
         uint8_t size() const {
             switch (type) {
                 case GroupItemAddDialog::Type::INT8:

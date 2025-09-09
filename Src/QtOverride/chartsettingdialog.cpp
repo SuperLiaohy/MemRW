@@ -8,9 +8,15 @@
 #include "ui_chartsettingdialog.h"
 
 
-ChartSettingDialog::ChartSettingDialog(QWidget *parent) :
+ChartSettingDialog::ChartSettingDialog(double xMin, double xMax, double yMin, double yMax, uint32_t buffer_size, QWidget *parent) :
         QDialog(parent), ui(new Ui::ChartSettingDialog) {
     ui->setupUi(this);
+    ui->sizeBox->setValue(buffer_size);
+    ui->xMinBox->setValue(xMin);
+    ui->xMaxBox->setValue(xMax);
+    ui->yMinBox->setValue(yMin);
+    ui->yMaxBox->setValue(yMax);
+
 }
 
 ChartSettingDialog::~ChartSettingDialog() {

@@ -14,22 +14,15 @@
    <string>ChartTabWidget</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="1">
-    <widget class="QComboBox" name="showBox"/>
-   </item>
-   <item row="1" column="1">
-    <widget class="QPushButton" name="stopBtn">
-     <property name="text">
-      <string>stop</string>
-     </property>
-    </widget>
-   </item>
    <item row="1" column="0">
     <widget class="QPushButton" name="startBtn">
      <property name="text">
       <string>start</string>
      </property>
     </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QComboBox" name="showBox"/>
    </item>
    <item row="0" column="2">
     <widget class="QLabel" name="freqLabel">
@@ -38,10 +31,10 @@
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QPushButton" name="setBtn">
+   <item row="1" column="1">
+    <widget class="QPushButton" name="stopBtn">
      <property name="text">
-      <string>advanced setting</string>
+      <string>stop</string>
      </property>
     </widget>
    </item>
@@ -49,6 +42,13 @@
     <widget class="QPushButton" name="logcfgBtn">
      <property name="text">
       <string>log config</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QPushButton" name="setBtn">
+     <property name="text">
+      <string>advanced setting</string>
      </property>
     </widget>
    </item>
