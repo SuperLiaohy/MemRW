@@ -27,6 +27,7 @@ TableTabWidget::~TableTabWidget() {
 void TableTabWidget::load_variables() {
     int row = 0;
 
+    ui->tableWidget->setRowCount(0);
     ui->tableWidget->setRowCount(group->variables.size());
     for (auto &variable:group->variables) {
         buffer.emplace(variable.first,buf{});
@@ -34,9 +35,12 @@ void TableTabWidget::load_variables() {
         QPushButton *writeBtn = new QPushButton("write", this);
 
         ui->tableWidget->setItem(row,0, new QTableWidgetItem(variable.first));
+        auto item = ui->tableWidget->item(row,0);
+        item->setFlags(item->flags()&~Qt::ItemIsEditable);
+
         ui->tableWidget->setItem(row,1, new QTableWidgetItem(QString("no read")));
 
-        auto item = ui->tableWidget->item(row,1);
+        item = ui->tableWidget->item(row,1);
         item->setFlags(item->flags()&~Qt::ItemIsEditable);
 
         ui->tableWidget->setCellWidget(row,2,readBtn);
