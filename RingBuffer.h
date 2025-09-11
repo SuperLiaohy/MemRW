@@ -34,7 +34,7 @@ public:
     }
 
     bool is_empty() const { return write_handle == read_handle; }
-    bool is_full() const { return (write_handle + 1) & mask() == read_handle; }
+    bool is_full() const { return ((write_handle + 1) & mask()) == read_handle; }
 
     // 返回缓冲区掩码（总是 2 的幂次方减 1）
     static consteval uint32_t mask() { return capacity() - 1; }

@@ -11,7 +11,6 @@
 #include <QMessageBox>
 #include <qrandom.h>
 
-#include "TreeItem.h"
 
 GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidget *parent) : QDialog(parent), treeWidget(tree), item(item), ui(new Ui::GroupItemAddDialog) {
     ui->setupUi(this);
@@ -23,10 +22,10 @@ GroupItemAddDialog::GroupItemAddDialog(QTreeWidget* tree, TreeItem* item, QWidge
     ui->groupBox->addItems(groups);
     ui->groupBox->setCurrentIndex(0);
 
-    ui->nameEdit->setText(item->data(0).toString());
-    ui->addrEdit->setText(item->data(2).toString());
+    ui->nameEdit->setText(QString::fromStdString(item->data(0)));
+    ui->addrEdit->setText(QString::fromStdString(item->data(2)));
 
-    ui->typeBox->addItems({"uint8_t","uint16_t","uint32_t","uint64_t","int8_t","int16_t","int32_t","int64_t", "float","double", item->data(1).toString()});
+    ui->typeBox->addItems({"uint8_t","uint16_t","uint32_t","uint64_t","int8_t","int16_t","int32_t","int64_t", "float","double", QString::fromStdString(item->data(1))});
     ui->typeBox->setCurrentIndex(10);
 
     auto generator = QRandomGenerator::global();

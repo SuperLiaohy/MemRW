@@ -14,7 +14,7 @@
 #include "charttabwidget.h"
 #include "addtabletabdialog.h"
 #include "tabletabwidget.h"
-std::shared_ptr<VariTree> get_addr_task(const std::string& file);
+std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode);
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -80,7 +80,7 @@ void MainWindow::on_openBtn_clicked() {
         cursor.setShape(Qt::WaitCursor);
         this->setCursor(cursor);
         ui->fileEdit->setText(fileName);
-        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString()),this);
+        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString(),mode),this);
         if (model!=nullptr) {
             delete model;
             model = nullptr;
@@ -98,7 +98,7 @@ void MainWindow::on_reloadBtn_clicked() {
         cursor.setShape(Qt::WaitCursor);
         this->setCursor(cursor);
         if (ui->fileEdit->text().isEmpty()) {return;}
-        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString()),this);
+        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString(),mode),this);
         ui->dwarf_treeView->setModel(new_model);
         if (model!=nullptr) {
             delete model;

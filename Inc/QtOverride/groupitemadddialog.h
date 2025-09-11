@@ -7,9 +7,9 @@
 
 #include <QDialog>
 #include <qtreewidget.h>
+#include "VariTree.h"
 
 class QTreeWidget;
-class TreeItem;
 QT_BEGIN_NAMESPACE
 
 namespace Ui {

@@ -5,7 +5,8 @@
 #pragma once
 
 #include <QAbstractItemModel>
-#include "TreeItem.h"
+//#include "TreeItem.h"
+#include "VariTree.h"
 
 class TreeModel : public QAbstractItemModel
 {
@@ -28,5 +29,5 @@ public:
     int columnCount(const QModelIndex &parent = {}) const override;
 
 private:
-    std::shared_ptr<TreeItem> tree;
+    std::shared_ptr<VariTree> tree;
 };

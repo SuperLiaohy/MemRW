@@ -104,134 +104,128 @@ std::tuple<int, uint64_t, Dwarf_Half> get_die_location(Dwarf_Debug dbg, Dwarf_Di
     return std::tuple{DW_DLV_OK, addr, opcode};
 }
 
-std::tuple<int, std::string> get_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
+std::tuple<int, std::string, uint32_t> get_die_type_with_size(Dwarf_Debug dbg, Dwarf_Die die) {
 
     int res = 0;
     Dwarf_Die type_die = nullptr;
     res = get_type_die(dbg, die, &type_die);
     if (res == DW_DLV_ERROR) {
-        return std::tuple{res, std::string()};
+        return std::tuple{res, std::string(), 0};
     } else if (res == DW_DLV_NO_ENTRY) {
         if (std::tuple{DW_DLV_OK,DW_TAG_pointer_type}==get_die_tag(dbg,die)) {
-            return std::tuple{DW_DLV_OK, std::string("void")};
+            return std::tuple{DW_DLV_OK, std::string("void"), 4};
         }
     }
 
     std::string name;
+    uint32_t size = 0;
+    uint32_t size_flag = 0;
     std::tie(res, name) = get_die_name(dbg, type_die);
+    std::tie(size_flag, size) = get_type_size(dbg,type_die);
+
+    Dwarf_Half tag = 0;
+    int is_tag = 0;
+    std::tie(is_tag, tag) = get_die_tag(dbg, type_die);
+    if (is_tag != DW_DLV_OK) {
+        return std::tuple{res, std::string(), 0};
+    }
+
+    if (res!=DW_DLV_OK&&tag==DW_TAG_subroutine_type) {
+        if (std::tuple{DW_DLV_OK,DW_TAG_pointer_type}==get_die_tag(dbg,die))
+            return std::tuple{DW_DLV_OK, std::string("void"), 4};
+    }
+
     if (res != DW_DLV_OK) {
-        Dwarf_Half tag = 0;
-        int is_tag = 0;
-        std::tie(is_tag, tag) = get_die_tag(dbg, type_die);
-        if (is_tag != DW_DLV_OK) {
-            return std::tuple{res, std::string()};
-        }
+        uint32_t array_count=0;
         switch (tag) {
             case DW_TAG_union_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "<anonymous union>"};
+                return std::tuple{DW_DLV_OK, "<anonymous union>",size};
             case DW_TAG_structure_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "<anonymous struct>"};
+                return std::tuple{DW_DLV_OK, "<anonymous struct>",size};
             case DW_TAG_class_type:
                 dwarf_dealloc_die(type_die);
-                return std::tuple{DW_DLV_OK, "<anonymous class>"};
+                return std::tuple{DW_DLV_OK, "<anonymous class>",size};
             case DW_TAG_const_type:
-                // display_single_die(dbg,type_die);
-                std::tie(res, name) = get_die_type(dbg, type_die);
-                if (name.find('*')==std::string::npos)
-                    name = "const " + name;
-                else
-                    name = name + " const";
-                break;
             case DW_TAG_volatile_type:
-                // display_single_die(dbg,type_die);
-                std::tie(res, name) = get_die_type(dbg, type_die);
-                if (name.find('*')==std::string::npos)
-                    name = "volatile " + name;
-                else
-                    name = name + " volatile";
+                std::tie(res, name,size) = get_die_type_with_size(dbg, type_die);
                 break;
-            case DW_TAG_pointer_type: {
-                // display_single_die(dbg,type_die);
-                std::tie(res, name) = get_die_type(dbg, type_die);
+            case DW_TAG_pointer_type:
+                std::tie(res, name,size) = get_die_type_with_size(dbg, type_die);
                 name = name + " *";
-            }
                 break;
             case DW_TAG_array_type:
-                // display_single_die(dbg,type_die);
-                std::tie(res, name) = get_die_type(dbg, type_die);
-                root_recursion_die_do(dbg, type_die, [&name](Dwarf_Debug dbg, Dwarf_Die die) {
-                    int res = 0;
-                    Dwarf_Error error = nullptr;
-                    std::string type_name;
-                    Dwarf_Half tag = 0;
-                    std::tie(res, tag) = get_die_tag(dbg, die);
-                    if (tag == DW_TAG_subrange_type) {
-                        std::tie(res, type_name) = get_die_type(dbg, die);
-                        if (res == DW_DLV_OK) {
-                            std::cout << "type:" << type_name << std::endl;
-                        }
-                        Dwarf_Attribute attr = nullptr;
-                        res = dw_error_check(dwarf_attr(die,DW_AT_count,&attr,&error),dbg,error);
-                        if (res != DW_DLV_OK) {
-                            error = nullptr;
-                            Dwarf_Unsigned count = 0;
-                            res = dw_error_check(dwarf_attr(die, DW_AT_upper_bound, &attr, &error), dbg, error);
-                            if (res != DW_DLV_OK) {res = dw_error_check(dwarf_attr(die, DW_AT_lower_bound, &attr, &error), dbg, error);}
-                            if (attr== nullptr) return;
-                            res = dw_error_check(dwarf_formudata(attr, &count, &error), dbg, error);
-                            if (res == DW_DLV_OK) {
-                                ++count;
-                                std::cout << "count:" << count << std::endl;
-                                name = name + " [" + std::to_string(count) + "]";
-                            }
-                            dwarf_dealloc_attribute(attr);
-                            return;
-                        }
-                        Dwarf_Unsigned count = 0;
-                        res = dw_error_check(dwarf_formudata(attr,&count,&error),dbg,error);
-                        dwarf_dealloc_attribute(attr);
-                        if (res != DW_DLV_OK) {return;}
-                        std::cout << "count: " << count << std::endl;
-                        name = name + " [" + std::to_string(count) + "]";
-                    }
-                });
-
+                std::tie(res, name,size) = get_die_type_with_size(dbg, type_die);
+                if (res!=DW_DLV_OK) {return {res, {},0};}
+                array_count = get_array_count(dbg,type_die);
+                name = name + '[' + std::to_string(array_count) + ']';
                 break;
             default: {
                 dwarf_dealloc_die(type_die);
                 std::cout << "error: error in get type die name" << std::endl;
-                return std::tuple{res, std::string()};
+                return std::tuple{res, std::string(),0};
             }
         }
         dwarf_dealloc_die(type_die);
-        return std::tuple{res, name};
+        return std::tuple{res, name, size};
     }
 
-    Dwarf_Half tag;
-    std::tie(res, tag) = get_die_tag(dbg,type_die);
     std::string recursion_name;
     switch (tag) {
         case DW_TAG_typedef:
-             std::tie(res, recursion_name) = get_die_type(dbg, type_die);
+            std::tie(res, recursion_name,size) = get_die_type_with_size(dbg, type_die);
             if (recursion_name.find("<anonymous")!=std::string::npos) {break;}
             dwarf_dealloc_die(type_die);
-            return std::tuple{res, recursion_name};
-        // case DW_TAG_base_type:
-        //     display_single_die(dbg,type_die);
+            return std::tuple{res, recursion_name,size};
         default:
             break;
     }
 
-    // if (name == "uint32_t") {
-    //     int res = 0; Dwarf_Half tag = 0;
-    //     std::tie(res, tag) = get_die_tag(dbg,type_die);
-    //     std::cout << "tag: " << trans_dw_tag(tag) << std::endl;
-    // }
-
     dwarf_dealloc_die(type_die);
-    return std::tuple{res, name};
+    return std::tuple{res, name,size};
+}
+
+std::tuple<int, std::string, uint32_t> get_type_die_name_with_size(Dwarf_Debug dbg, Dwarf_Die die) {
+
+    int res = 0;
+    std::string name;
+    uint32_t size = 0;
+    uint32_t size_flag = 0;
+    std::tie(res, name) = get_die_name(dbg, die);
+    std::tie(size_flag, size) = get_type_size(dbg,die);
+
+    Dwarf_Half tag = 0;
+    int is_tag = 0;
+    std::tie(is_tag, tag) = get_die_tag(dbg, die);
+    if (is_tag != DW_DLV_OK) {
+        return std::tuple{res, std::string(), 0};
+    }
+
+    if (res != DW_DLV_OK) {
+        switch (tag) {
+            case DW_TAG_union_type:
+                return std::tuple{DW_DLV_OK, "<anonymous union>", size};
+            case DW_TAG_structure_type:
+                return std::tuple{DW_DLV_OK, "<anonymous struct>", size};
+            case DW_TAG_class_type:
+                return std::tuple{DW_DLV_OK, "<anonymous class>", size};
+            default: {
+                std::cout << "error: error in get type die name" << std::endl;
+                return std::tuple{res, std::string(),0};
+            }
+        }
+    }
+    std::string recursion_name;
+    switch (tag) {
+        case DW_TAG_typedef:
+             std::tie(res, recursion_name,size) = get_die_type_with_size(dbg, die);
+            if (recursion_name.find("<anonymous")!=std::string::npos||recursion_name.empty()) {break;}
+            return std::tuple{res, recursion_name,size};
+        default:
+            break;
+    }
+    return std::tuple{res, name,size};
 }
 
 int display_die_name(Dwarf_Debug dbg, Dwarf_Die die) {
@@ -261,12 +255,13 @@ int display_die_location(Dwarf_Debug dbg, Dwarf_Die die) {
     return res;
 }
 
-int display_die_type(Dwarf_Debug dbg, Dwarf_Die die) {
+int display_die_type_with_size(Dwarf_Debug dbg, Dwarf_Die die) {
     int res = 0;
+    uint32_t size = 0;
     std::string type;
-    std::tie(res, type) = get_die_type(dbg, die);
+    std::tie(res, type, size) = get_die_type_with_size(dbg, die);
     if (res == DW_DLV_OK)
-        std::cout << "type: " << type << std::endl;
+        std::cout << "type: " << type << "\tsize: " << size << std::endl;
     else
         std::cout << "type: no type!" << std::endl;
     return res;

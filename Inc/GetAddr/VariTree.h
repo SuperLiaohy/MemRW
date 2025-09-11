@@ -9,55 +9,109 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <variant>
+#include <format>
+enum class DWARF_MODE {
+    SIMPLE,
+    COMPLEX
+};
 
 
 class VariNode {
 public:
-    VariNode() : addr(0) {};
-    VariNode(std::string name, std::string type ,const uint64_t addr) : name(std::move(name)), type(std::move(type)), addr(addr), node() {};
+    VariNode() : addr(0), size(0), father(nullptr) {};
+    VariNode(std::string name, std::string type ,const uint64_t addr, uint32_t size, VariNode* parent = nullptr) : name(std::move(name)), type(std::move(type)), size(size), addr(addr), children(), father(parent) {};
 
     std::string name;
     std::string type;
+    uint32_t size;
     uint64_t addr;
-    std::vector<std::shared_ptr<VariNode>> node;
+    VariNode* father;
+    std::vector<std::shared_ptr<VariNode>> children;
 
-    void add_child(std::string name, std::string type ,const uint64_t addr) {
-        node.push_back(std::make_shared<VariNode>(std::move(name),std::move(type), addr));
+    std::string data(int column) const {
+        switch (column) {
+            case 0:
+                return name;
+            case 1:
+                return type;
+            case 2: {
+                if (type == "compile uint") return {};
+                uint64_t address = addr;
+                auto node = this;
+                while (node->father != nullptr)  {
+                    node = node->father;
+                    address+=node->addr;
+                }
+                return std::format("0x{:x}", address);
+            }
+            case 3:
+                return std::format("{}", size);
+            default:
+                return {};
+
+        }
+    }
+    VariNode* child(int row) {
+        if (row < 0 || row >= children.size()) { return nullptr; }
+        return children[row].get();
+    }
+    int childCount() {
+        return children.size();
+    }
+    VariNode *parent() {
+        return father;
+    }
+    
+    void add_child(std::string child_name, std::string child_type ,const uint64_t child_addr, uint32_t child_size) {
+        children.push_back(std::make_shared<VariNode>(std::move(child_name), std::move(child_type), child_addr, child_size, this));
     }
 
     void add_child(const std::shared_ptr<VariNode>& child) {
-        node.push_back(child);
+        children.push_back(child);
+        child->father = this;
     }
 
-    void add_child_array(uint32_t number, uint32_t size) {
-        this->node.resize(number);
-        auto pos = type.rfind('[') - 1;
-        std::string basic_type = type.substr(0,pos);
-        for (int i = 0; i < number; ++i) {
-            auto p = std::make_shared<VariNode>(std::move("["+std::to_string(i)+"]"),basic_type, this->addr + size*i);
-            node[i] = p;
+    void add_type_tree(const std::shared_ptr<VariNode>& type_tree) {
+        this->size = type_tree->size;
+        add_tree(this, type_tree);
+    }
+
+    template<typename Fun>
+    void traversal_end_node(Fun fun){
+        recursion_end_node(this,fun);
+    }
+
+private:
+    static void add_tree(VariNode* parent, const std::shared_ptr<VariNode>& tree) {
+        for (auto & index : tree->children) {
+            auto node = std::make_shared<VariNode>(*index);
+            parent->add_child(node);
+            node->children.clear();
+            VariNode::add_tree(node.get(),index);
         }
     }
 
-    void add_child_with_offset(std::string name, std::string type , uint64_t addr) {
-        addr += this->addr;
-        node.push_back(std::make_shared<VariNode>(std::move(name),std::move(type), addr));
+    template<typename Fun>
+    static void recursion_end_node(VariNode* parent, Fun fun) {
+        for (auto & node : parent->children) {
+            if (node->children.empty())
+                fun(node);
+            else
+                recursion_end_node(node.get(),fun);
+        }
     }
 
-    void add_child_with_offset(const std::shared_ptr<VariNode>& child) {
-        child->addr += this->addr;
-        node.push_back(child);
-    }
 
 };
 
 class VariTree {
 public:
 
-    VariTree(const std::shared_ptr<VariNode>& root) : root(root) {}
+    explicit VariTree(const std::shared_ptr<VariNode>& root) : root(root) {}
 
-    VariTree(std::string name, std::string type ,const uint64_t addr) {
-        root = std::make_shared<VariNode>(std::move(name), std::move(type), addr);
+    VariTree() {
+        root = std::make_shared<VariNode>("root", "N/A", 0, 0, nullptr);
     }
 
     std::shared_ptr<VariNode> root;
@@ -66,9 +120,6 @@ public:
         root->add_child(child);
     }
 
-    void add_child_with_offset(const std::shared_ptr<VariNode>& child) {
-        child->addr += this->root->addr;
-        root->add_child(child);
-    }
-
 };
+
+using TreeItem = VariNode;
