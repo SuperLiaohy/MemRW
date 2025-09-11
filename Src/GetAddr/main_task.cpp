@@ -137,6 +137,9 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                     }
                                         break;
                                     case DW_TAG_array_type: {
+                                        uint32_t count = get_array_count(dbg, die);
+                                        uint32_t type_size = node->size;
+                                        node->size = node->size*count;
                                         Dwarf_Die type_die = nullptr;
                                         if (get_type_die(dbg, die, &type_die) != DW_DLV_OK) { return; }
                                         node->add_child(std::make_shared<VariNode>());
@@ -146,11 +149,11 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                         dwarf_dealloc_die(type_die);
                                         if (node->children[0]->type.empty()) { return; }
                                         node->children[0]->name = "[0]";
-                                        for (int index = 1; index < get_array_count(dbg, die); ++index) {
+                                        for (int index = 1; index < count; ++index) {
                                             node->children.push_back(
                                                     std::make_shared<VariNode>(*node->children[index - 1]));
                                             node->children[index]->name = "[" + std::to_string(index) + "]";
-                                            node->children[index]->addr += size;
+                                            node->children[index]->addr = type_size*index;
                                         }
                                     }
                                         break;
@@ -300,6 +303,9 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                         recursion_type_do(dbg, die, self(node, self));
                                         break;
                                     case DW_TAG_array_type: {
+                                        uint32_t count = get_array_count(dbg, die);
+                                        uint32_t type_size = node->size;
+                                        node->size = node->size*count;
                                         Dwarf_Die type_die = nullptr;
                                         if (get_type_die(dbg, die, &type_die) != DW_DLV_OK) { return; }
                                         node->add_child(std::make_shared<VariNode>());
@@ -309,11 +315,11 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                         dwarf_dealloc_die(type_die);
                                         if (node->children[0]->type.empty()) { return; }
                                         node->children[0]->name = "[0]";
-                                        for (int index = 1; index < get_array_count(dbg, die); ++index) {
+                                        for (int index = 1; index < count; ++index) {
                                             node->children.push_back(
                                                     std::make_shared<VariNode>(*node->children[index - 1]));
                                             node->children[index]->name = "[" + std::to_string(index) + "]";
-                                            node->children[index]->addr += size;
+                                            node->children[index]->addr = type_size*index;
                                         }
                                     }
                                         break;
@@ -445,7 +451,7 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                     case DW_TAG_array_type: {
                                         uint32_t count = get_array_count(dbg, die);
                                         uint32_t type_size = node->size;
-                                        node->size = count = node->size*count;
+                                        node->size = node->size*count;
                                         Dwarf_Die type_die = nullptr;
                                         if (get_type_die(dbg, die, &type_die) != DW_DLV_OK) { return; }
                                         node->add_child(std::make_shared<VariNode>());
