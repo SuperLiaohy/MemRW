@@ -198,7 +198,7 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
             // try {
                 auto point = series->points()[index];
                 listTip<<point;
-                qDebug()<<point;
+                // qDebug()<<point;
                 text.push_back(QString("%1:(%2,%3)\n").arg(series->name()).arg(point.x()).arg(point.y()));
             // } catch (const std::out_of_range& e) {
             //     qDebug() << "Key not found: " << e.what();
@@ -386,14 +386,16 @@ void ChartTabWidget::on_setBtn_clicked() {
     auto yMin = ui->chartWidget->y_min();
     auto yMax = ui->chartWidget->y_max();
 
-    ChartSettingDialog *dlg = new ChartSettingDialog(xMin,xMax,yMin,yMax,group->variables[0].ring_buffers.capacity(),
-                                                     this);
+    int size = 0;
+    for (auto& variable : group->variables) {
+        size = variable.second.ring_buffers.capacity();
+    }
+    ChartSettingDialog *dlg = new ChartSettingDialog(xMin,xMax,yMin,yMax,size,this);
     if (dlg->exec()==QDialog::Accepted) {
         ui->chartWidget->changeDefaultX(dlg->xMin(),dlg->xMax());
         ui->chartWidget->changeDefaultY(dlg->yMin(),dlg->yMax());
         for (auto& variable : group->variables) {
             variable.second.ring_buffers.change_capacity(dlg->bufferSize());
-
         }
     }
 }

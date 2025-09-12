@@ -42,6 +42,18 @@ MainWindow::MainWindow(QWidget *parent)
             else tabWidget->show();
         });
     };
+    QSplitter *splitter = new QSplitter(Qt::Vertical, ui->frame);
+    splitter->addWidget(ui->chartTab);
+    splitter->addWidget(ui->tableTab);
+    QVBoxLayout *layout = new QVBoxLayout(ui->frame);
+    layout->addWidget(splitter);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    QList<int> sizes;
+    sizes << 300 << 200;
+    splitter->setSizes(sizes);
+
     setupTab(ui->tableTab);
     connect(ui->tableTab, &QTabWidget::tabCloseRequested, this, [this](int index) {
         auto widget = (ui->tableTab->widget(index));
