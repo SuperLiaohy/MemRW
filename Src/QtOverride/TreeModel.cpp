@@ -6,7 +6,7 @@
 
 TreeModel::TreeModel(const std::shared_ptr<VariTree> &data, QObject *parent)
     : QAbstractItemModel(parent),
-      tree(std::make_shared<TreeItem>(data->root)) {
+      tree(data) {
 }
 
 TreeModel::~TreeModel() {
@@ -15,8 +15,8 @@ TreeModel::~TreeModel() {
 QVariant TreeModel::data(const QModelIndex &index, int role) const {
     if (!index.isValid()) return QVariant();
     if (role == Qt::DisplayRole) {
-        auto item = static_cast<TreeItem *>(index.internalPointer());
-        return item->data(index.column());
+        auto item = static_cast<VariNode *>(index.internalPointer());
+        return QString::fromStdString(item->data(index.column()));
     }
     return QVariant();
 }
@@ -30,6 +30,8 @@ QVariant TreeModel::headerData(int section, Qt::Orientation orientation, int rol
                 return QString("Type");
             case 2:
                 return QString("Address");
+            case 3:
+                return QString("Size");
         }
     }
     return QVariant();
@@ -37,30 +39,30 @@ QVariant TreeModel::headerData(int section, Qt::Orientation orientation, int rol
 
 QModelIndex TreeModel::index(int row, int column, const QModelIndex &parent) const {
     if (!hasIndex(row, column, parent)) return QModelIndex();
-    TreeItem *parentItem = parent.isValid()
-                               ? static_cast<TreeItem *>(parent.internalPointer())
-                               : tree.get();
-    TreeItem *childItem = parentItem->child(row);
+    VariNode *parentItem = parent.isValid()
+                               ? static_cast<VariNode *>(parent.internalPointer())
+                               : tree->root.get();
+    VariNode *childItem = parentItem->child(row);
     if (childItem) return createIndex(row, column, childItem);
     return QModelIndex();
 }
 
 QModelIndex TreeModel::parent(const QModelIndex &index) const {
     if (!index.isValid()) return QModelIndex();
-    auto *childItem = static_cast<TreeItem *>(index.internalPointer());
-    TreeItem *parentItem = childItem->parent();
+    auto *childItem = static_cast<VariNode *>(index.internalPointer());
+    VariNode *parentItem = childItem->parent();
 
-    return parentItem != tree.get()
+    return parentItem != tree->root.get()
                ? createIndex(parentItem->childCount(), 0, parentItem)
                : QModelIndex{};
 }
 
 int TreeModel::rowCount(const QModelIndex &parent) const {
-    if (!parent.isValid()) { return tree->childCount(); }
-    auto parent_node = static_cast<TreeItem *>(parent.internalPointer());
+    if (!parent.isValid()) { return tree->root->childCount(); }
+    auto parent_node = static_cast<VariNode *>(parent.internalPointer());
     return parent_node->childCount();
 }
 
 int TreeModel::columnCount(const QModelIndex &parent) const {
-    return TreeItem::columnCount();
+    return 4;
 }

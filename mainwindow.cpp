@@ -14,7 +14,7 @@
 #include "charttabwidget.h"
 #include "addtabletabdialog.h"
 #include "tabletabwidget.h"
-std::shared_ptr<VariTree> get_addr_task(const std::string& file);
+std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode);
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -60,7 +60,6 @@ MainWindow::MainWindow(QWidget *parent)
         if (widget!=nullptr) {widget->close();}
     });
 
-
     this->dumpObjectTree();
 }
 
@@ -80,7 +79,11 @@ void MainWindow::on_openBtn_clicked() {
         cursor.setShape(Qt::WaitCursor);
         this->setCursor(cursor);
         ui->fileEdit->setText(fileName);
-        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString()),this);
+        if (ui->modeBox->isChecked())
+            mode = DWARF_MODE::COMPLEX;
+        else
+            mode = DWARF_MODE::SIMPLE;
+        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString(),mode),this);
         if (model!=nullptr) {
             delete model;
             model = nullptr;
@@ -98,7 +101,11 @@ void MainWindow::on_reloadBtn_clicked() {
         cursor.setShape(Qt::WaitCursor);
         this->setCursor(cursor);
         if (ui->fileEdit->text().isEmpty()) {return;}
-        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString()),this);
+        if (ui->modeBox->isChecked())
+            mode = DWARF_MODE::COMPLEX;
+        else
+            mode = DWARF_MODE::SIMPLE;
+        TreeModel* new_model = new TreeModel(get_addr_task(ui->fileEdit->text().toStdString(),mode),this);
         ui->dwarf_treeView->setModel(new_model);
         if (model!=nullptr) {
             delete model;

@@ -71,6 +71,7 @@ private:
     std::unique_ptr<DAPReader> link;
     bool is_closing{false};
     bool is_disconnect{true};
+    DWARF_MODE mode;
 
 private:
     Ui::MainWindow *ui;

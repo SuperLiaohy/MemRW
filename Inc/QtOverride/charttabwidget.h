@@ -38,6 +38,7 @@ public slots:
     void on_logcfgBtn_clicked();
     void on_startBtn_clicked();
     void on_stopBtn_clicked();
+    void on_setBtn_clicked();
     void timerUpdate();
 
 
@@ -48,6 +49,9 @@ private:
     QString file_name;
     std::shared_ptr<GroupTreeWidget::Group> group;
     QList<QLineSeries *> series_list;
+    QScatterSeries* scatterSeries;
+    QLineSeries* dashLine;
+    QLabel* tips;
 
 
     QTimer* timer;
@@ -56,7 +60,7 @@ private:
     uint32_t last_time;
     int freq = 0;
 
-
+    int findClosestPointIndex(const QVector<QPointF>& points, double x, double error);
 
 };
 

@@ -8,29 +8,6 @@
 #include "tag_utils.h"
 #include <iostream>
 
-int display_single_vari_die(Dwarf_Debug dbg, Dwarf_Die die) {
-    int res=0;
-    Dwarf_Half tag = 0;
-    std::string name;
-    std::string type;
-    uint64_t addr = 0;
-    Dwarf_Half opcode = 0;
-
-    std::tie(res, tag) = get_die_tag(dbg, die);
-    if (tag!=DW_TAG_variable || res != DW_DLV_OK ) {return res;}
-    std::tie(res, name) = get_die_name(dbg, die);
-    if (res != DW_DLV_OK) {return res;}
-    std::tie(res, addr, opcode) = get_die_location(dbg, die);
-    if (res != DW_DLV_OK || addr == 0) {return res;}
-    std::cout << "--------------------" << std::endl;
-    std::cout << "var name: " << name << std::endl;
-    std::cout << "opcode: " << opcode << "\taddr: " << addr << std::endl;
-    std::cout << "type recursion: " << std::endl;
-    display_full_type(dbg, die);
-
-    return res;
-}
-
 int display_single_die(Dwarf_Debug dbg, Dwarf_Die die) {
     int res=0;
     Dwarf_Error error = nullptr;
@@ -89,16 +66,15 @@ int display_single_die(Dwarf_Debug dbg, Dwarf_Die die) {
     return res;
 }
 
-
-int display_recursion_die(Dwarf_Debug dbg, Dwarf_Die die) {
+int recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)>& func) {
     int res=0;
     Dwarf_Error error=nullptr;
     Dwarf_Die cur_die = die, sib_die = nullptr, child_die = nullptr;
-    display_single_vari_die(dbg, cur_die);
+    func(dbg, cur_die);
     while (true) {
         res = dw_error_check(dwarf_child(cur_die, &child_die, &error), dbg, error);
         if (res == DW_DLV_OK) {
-            display_recursion_die(dbg, child_die);
+            recursion_die_do(dbg, child_die, func);
             dwarf_dealloc_die(child_die);
         }
         res = dw_error_check(dwarf_siblingof_c(cur_die, &sib_die, &error), dbg, error);
@@ -113,22 +89,21 @@ int display_recursion_die(Dwarf_Debug dbg, Dwarf_Die die) {
             break;
         }
         cur_die = sib_die;
-        display_single_vari_die(dbg, sib_die);
+        func(dbg, sib_die);
     }
     return res;
 }
 
-int recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)>& func) {
+int one_step_recursion_die_do(Dwarf_Debug dbg, Dwarf_Die die, const std::function<void(Dwarf_Debug, Dwarf_Die)>& func) {
     int res=0;
     Dwarf_Error error=nullptr;
     Dwarf_Die cur_die = die, sib_die = nullptr, child_die = nullptr;
-    func(dbg, cur_die);
+    res = dw_error_check(dwarf_child(cur_die, &child_die, &error), dbg, error);
+    if (res != DW_DLV_OK) {return res;}
+    cur_die = child_die;
+    func(dbg,cur_die);
     while (true) {
-        res = dw_error_check(dwarf_child(cur_die, &child_die, &error), dbg, error);
-        if (res == DW_DLV_OK) {
-            recursion_die_do(dbg, child_die, func);
-            dwarf_dealloc_die(child_die);
-        }
+
         res = dw_error_check(dwarf_siblingof_c(cur_die, &sib_die, &error), dbg, error);
         if (cur_die != die) {
             dwarf_dealloc_die(cur_die);
