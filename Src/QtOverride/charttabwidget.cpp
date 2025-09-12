@@ -13,6 +13,21 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
         QWidget(parent), ui(new Ui::ChartTabWidget), group(group) {
     ui->setupUi(this);
 
+    scatterSeries = new QScatterSeries(this);
+    dashLine = new QLineSeries(this);
+
+    QPen pen(Qt::DashLine);
+    pen.setColor(Qt::red);
+    pen.setWidth(2);
+    dashLine->setPen(pen);
+
+    scatterSeries->setMarkerSize(7.0);
+    ui->chartWidget->addSeriesLine(scatterSeries);
+    ui->chartWidget->addSeriesLine(dashLine);
+
+    ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
+    ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
+
     QStringList show_mode;
     show_mode.append("only lines");
     show_mode.append("lines and points");
@@ -57,6 +72,41 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     timer = new QTimer(this);
     timer->stop();
     connect(timer, &QTimer::timeout, this, &ChartTabWidget::timerUpdate);
+
+    auto tipTimer = new QTimer(this);
+    connect(tipTimer, &QTimer::timeout, this, [this](){
+
+        const QPoint curPos = QCursor::pos();
+
+        QPoint localPos = ui->chartWidget->mapFromGlobal(curPos);
+
+        if (!ui->chartWidget->rect().contains(localPos)){return ;}
+        QPointF curVal = ui->chartWidget->chart()->mapToValue(QPointF(localPos));
+
+        auto x = (curVal.x());
+        auto error = ui->chartWidget->xRange()*0.005;
+        QString text;
+        QList<QPointF> listTip;
+        for (auto & series : series_list) {
+            int index = findClosestPointIndex(series->points(),x,error);
+            if (index<0) {
+                text.push_back(QString("%1:(%2)\n").arg(series->name()).arg("N/A"));
+                return;
+            }
+            const auto& point = series->points()[index];
+            listTip<<point;
+            text.push_back(QString("%1:(%2,%3)\n").arg(series->name()).arg(point.x()).arg(point.y()));
+        }
+        QToolTip::showText(QCursor::pos(), text);
+        scatterSeries->replace(listTip);
+        QList<QPointF> list{QPointF(x,static_cast<QValueAxis*>(ui->chartWidget->chart()->axisY())->min()),
+                            QPointF(x,static_cast<QValueAxis*>(ui->chartWidget->chart()->axisY())->max())};
+
+        dashLine->replace(list);
+
+    });
+    tipTimer->start(8);
+
 }
 
 ChartTabWidget::~ChartTabWidget() {
@@ -196,6 +246,8 @@ void ChartTabWidget::timerUpdate() {
     if (time > ui->chartWidget->xRange()) {
         ui->chartWidget->chart()->axisX()->setRange(time - ui->chartWidget->xRange(), time);
     }
+
+
 }
 
 void ChartTabWidget::writeCsv(const QList<QStringList> &data) {
@@ -209,3 +261,43 @@ void ChartTabWidget::startBtnEnable(bool able) {
     ui->startBtn->setEnabled(able);
 }
 
+// 假设points已按x坐标升序排序
+int ChartTabWidget::findClosestPointIndex(const QVector<QPointF>& points, double x, double error) {
+    // 特殊情况处理
+    if (points.isEmpty())
+        return -1;
+
+    int left = 0;
+    int right = points.size() - 1;
+
+    // 如果x小于最小值或大于最大值，直接返回边界点
+    if (x <= points[left].x())
+        return left;
+    if (x >= points[right].x())
+        return right;
+
+    // 二分查找
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+
+        // 如果找到精确匹配（在误差范围内）
+        if (fabs(points[mid].x() - x) < error)
+            return mid;
+
+        // 决定搜索哪半部分
+        if (points[mid].x() < x)
+            left = mid + 1;
+        else
+            right = mid - 1;
+    }
+
+    // 此时left > right，需要比较哪个点更接近x
+    // left可能等于points.size()，需要检查边界
+    if (left >= points.size())
+        return right;
+    if (right < 0)
+        return left;
+
+    // 返回更接近x的点的索引
+    return (fabs(points[left].x() - x) < fabs(points[right].x() - x)) ? left : right;
+}

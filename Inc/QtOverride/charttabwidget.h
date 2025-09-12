@@ -49,6 +49,8 @@ private:
     QString file_name;
     std::shared_ptr<GroupTreeWidget::Group> group;
     QList<QLineSeries *> series_list;
+    QScatterSeries* scatterSeries;
+    QLineSeries* dashLine;
 
 
     QTimer* timer;
@@ -57,7 +59,7 @@ private:
     uint32_t last_time;
     int freq = 0;
 
-
+    int findClosestPointIndex(const QVector<QPointF>& points, double x, double error);
 
 };
 
