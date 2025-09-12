@@ -11,6 +11,7 @@
 #include <memory>
 #include <variant>
 #include <format>
+#include "iostream"
 enum class DWARF_MODE {
     SIMPLE,
     COMPLEX
@@ -31,21 +32,40 @@ public:
 
     std::string data(int column) const {
         switch (column) {
-            case 0:
-                return name;
+            case 0:{
+                auto node = this;
+                if (node->father == nullptr) return name;;
+                if (node->father->father== nullptr) return name;
+                int index = 0;
+                std::string end_name = node->name;
+                std::cout <<index<<": "<<  end_name << std::endl;
+
+                while (node->father->father->father!=nullptr)  {
+                    node = node->father;
+                    std::string result = node->name;
+                    std::cout <<++index<<": "<< result << std::endl;
+                    if (end_name[0]!='[') result += '.';
+                    result += end_name;
+                    end_name = result;
+                }
+                return end_name;
+            }
             case 1:
                 return type;
             case 2: {
-                if (type == "compile uint") return {};
-                uint64_t address = addr;
                 auto node = this;
-                while (node->father != nullptr)  {
+                if (node->father == nullptr) return {};;
+                if (node->father->father== nullptr) return {};;
+                uint64_t address = addr;
+                while (node->father->father->father != nullptr)  {
                     node = node->father;
                     address+=node->addr;
                 }
                 return std::format("0x{:x}", address);
             }
             case 3:
+                if (this->father == nullptr) return {};;
+                if (this->father->father== nullptr) return {};;
                 return std::format("{}", size);
             default:
                 return {};

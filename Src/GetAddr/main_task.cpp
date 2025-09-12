@@ -464,7 +464,7 @@ std::shared_ptr<VariTree> get_addr_task(const std::string& file, DWARF_MODE mode
                                         for (int index = 1; index < count; ++index) {
                                             node->children.push_back(
                                                     std::make_shared<VariNode>(*node->children[index - 1]));
-                                            node->children[index]->name = "[" + std::to_string(index) + "]";
+                                            node->children[index]->name = std::format("[{}]",index);
                                             node->children[index]->addr = type_size*index;
                                         }
                                     }
