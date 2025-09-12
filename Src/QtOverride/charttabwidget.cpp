@@ -9,6 +9,32 @@
 
 #include "datalogdialog.h"
 #include "chartsettingdialog.h"
+
+class LegendFilter : public QObject
+{
+public:
+    LegendFilter(QObject* parent = nullptr) : QObject(parent) {}
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        // 拦截双击事件
+        if (event->type() == QEvent::GraphicsSceneMouseDoubleClick) {
+            return true; // 阻止事件继续传播
+        }
+
+        // 拦截背景双击事件（可能需要根据具体情况调整）
+        if (event->type() == QEvent::GraphicsSceneMousePress) {
+            QGraphicsSceneMouseEvent* mouseEvent = static_cast<QGraphicsSceneMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton && mouseEvent->modifiers() & Qt::ControlModifier) {
+                return true; // 阻止可能的控制键+点击组合
+            }
+        }
+
+        return QObject::eventFilter(watched, event);
+    }
+};
+
 ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& group, QWidget *parent) :
         QWidget(parent), ui(new Ui::ChartTabWidget), group(group) {
     ui->setupUi(this);
@@ -73,6 +99,61 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     timer->stop();
     connect(timer, &QTimer::timeout, this, &ChartTabWidget::timerUpdate);
 
+    ui->chartWidget->chart()->legend()->setInteractive(true);
+    LegendFilter* filter = new LegendFilter(ui->chartWidget->chart()->scene());
+    // 还需要为图表背景安装过滤器
+    ui->chartWidget->chart()->scene()->installEventFilter(filter);
+
+    for (auto&mark:ui->chartWidget->chart()->legend()->markers()) {
+        connect(mark,&QLegendMarker::clicked,this,[this](){
+            // 将发送者强制转换为 QLegendMarker 类型
+            QLegendMarker* marker = qobject_cast<QLegendMarker*>(sender());
+
+            // 检查标记的类型
+            switch (marker->type())
+            {
+                case QLegendMarker::LegendMarkerTypeXY:
+                {
+                    // 切换数据系列的可见性
+                    marker->series()->setVisible(!marker->series()->isVisible());
+
+                    // 设置标记可见
+                    marker->setVisible(true);
+
+                    // 根据数据系列的可见性设置标记的透明度
+                    qreal alpha = 1.0;
+                    if (!marker->series()->isVisible())
+                        alpha = 0.5;
+
+                    // 调整标记的标签刷颜色透明度
+                    QColor color;
+                    QBrush brush = marker->labelBrush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setLabelBrush(brush);
+
+                    // 调整标记的刷颜色透明度
+                    brush = marker->brush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setBrush(brush);
+
+                    // 调整标记的画笔颜色透明度
+                    QPen pen = marker->pen();
+                    color = pen.color();
+                    color.setAlphaF(alpha);
+                    pen.setColor(color);
+                    marker->setPen(pen);
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
+    }
+    
     auto tipTimer = new QTimer(this);
     connect(ui->tipLineBox, &QCheckBox::stateChanged,tipTimer,[this,tipTimer](int state){
         if (state==Qt::Checked) {
@@ -191,6 +272,60 @@ void ChartTabWidget::on_startBtn_clicked() {
         ui->chartWidget->addSeriesLine(series_list[index]);
         ++index;
     }
+
+    ui->chartWidget->chart()->legend()->setInteractive(true);
+    ui->chartWidget->chart()->legend()->setAlignment(Qt::AlignTop);
+    for (auto&mark:ui->chartWidget->chart()->legend()->markers()) {
+        connect(mark,&QLegendMarker::clicked,this,[this](){
+            // 将发送者强制转换为 QLegendMarker 类型
+            QLegendMarker* marker = qobject_cast<QLegendMarker*>(sender());
+            if (marker== nullptr) {return ;}
+            // 检查标记的类型
+            switch (marker->type())
+            {
+                case QLegendMarker::LegendMarkerTypeXY:
+                {
+                    // 切换数据系列的可见性
+                    marker->series()->setVisible(!marker->series()->isVisible());
+
+                    // 设置标记可见
+                    marker->setVisible(true);
+
+                    // 根据数据系列的可见性设置标记的透明度
+                    qreal alpha = 1.0;
+                    if (!marker->series()->isVisible())
+                        alpha = 0.5;
+
+                    // 调整标记的标签刷颜色透明度
+                    QColor color;
+                    QBrush brush = marker->labelBrush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setLabelBrush(brush);
+
+                    // 调整标记的刷颜色透明度
+                    brush = marker->brush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setBrush(brush);
+
+                    // 调整标记的画笔颜色透明度
+                    QPen pen = marker->pen();
+                    color = pen.color();
+                    color.setAlphaF(alpha);
+                    pen.setColor(color);
+                    marker->setPen(pen);
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
+    }
+
+
     if (islog) writeCsv({csv_header});
     ui->showBox->setEnabled(false);
     ui->setBtn->setEnabled(false);
