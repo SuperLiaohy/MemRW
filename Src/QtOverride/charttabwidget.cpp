@@ -74,6 +74,17 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     connect(timer, &QTimer::timeout, this, &ChartTabWidget::timerUpdate);
 
     auto tipTimer = new QTimer(this);
+    connect(ui->tipLineBox, &QCheckBox::stateChanged,tipTimer,[this,tipTimer](int state){
+        if (state==Qt::Checked) {
+            scatterSeries->setVisible(true);
+            dashLine->setVisible(true);
+            tipTimer->start(10);
+        } else if (state==Qt::Unchecked) {
+            scatterSeries->setVisible(false);
+            dashLine->setVisible(false);
+            tipTimer->stop();
+        }
+    });
     connect(tipTimer, &QTimer::timeout, this, [this](){
 
         const QPoint curPos = QCursor::pos();
@@ -105,7 +116,6 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
         dashLine->replace(list);
 
     });
-    tipTimer->start(8);
 
 }
 
