@@ -51,6 +51,7 @@ private:
     QList<QLineSeries *> series_list;
     QScatterSeries* scatterSeries;
     QLineSeries* dashLine;
+    QLabel* tips;
 
 
     QTimer* timer;

@@ -41,6 +41,10 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
 
     scatterSeries = new QScatterSeries(this);
     dashLine = new QLineSeries(this);
+    tips = new QLabel(this);
+    tips->setFrameStyle(QFrame::StyledPanel);
+    tips->setAlignment(Qt::AlignLeft);
+    tips->hide();
 
     QPen pen(Qt::DashLine);
     pen.setColor(Qt::red);
@@ -157,12 +161,18 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     auto tipTimer = new QTimer(this);
     connect(ui->tipLineBox, &QCheckBox::stateChanged,tipTimer,[this,tipTimer](int state){
         if (state==Qt::Checked) {
-            scatterSeries->setVisible(true);
-            dashLine->setVisible(true);
+            scatterSeries->show();
+            dashLine->show();
+            tips->show();
+            ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
+            ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
             tipTimer->start(10);
         } else if (state==Qt::Unchecked) {
-            scatterSeries->setVisible(false);
-            dashLine->setVisible(false);
+            scatterSeries->hide();
+            dashLine->hide();
+            tips->hide();
+            ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
+            ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
             tipTimer->stop();
         }
     });
@@ -176,20 +186,32 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
         QPointF curVal = ui->chartWidget->chart()->mapToValue(QPointF(localPos));
 
         auto x = (curVal.x());
-        auto error = ui->chartWidget->xRange()*0.005;
+        auto error = std::min(ui->chartWidget->xRange()*0.01,1.0);
         QString text;
         QList<QPointF> listTip;
         for (auto & series : series_list) {
             int index = findClosestPointIndex(series->points(),x,error);
             if (index<0) {
                 text.push_back(QString("%1:(%2)\n").arg(series->name()).arg("N/A"));
-                return;
+                continue;
             }
-            const auto& point = series->points()[index];
-            listTip<<point;
-            text.push_back(QString("%1:(%2,%3)\n").arg(series->name()).arg(point.x()).arg(point.y()));
+            // try {
+                auto point = series->points()[index];
+                listTip<<point;
+                // qDebug()<<point;
+                text.push_back(QString("%1:(%2,%3)\n").arg(series->name()).arg(point.x()).arg(point.y()));
+            // } catch (const std::out_of_range& e) {
+            //     qDebug() << "Key not found: " << e.what();
+            // }
         }
-        QToolTip::showText(QCursor::pos(), text);
+        tips->move(this->mapFromGlobal(curPos)+QPoint(10,0));
+        if(text.isEmpty())
+            tips->hide();
+        else
+            tips->show();
+        tips->setText(text);
+        tips->adjustSize();
+
         scatterSeries->replace(listTip);
         QList<QPointF> list{QPointF(x,static_cast<QValueAxis*>(ui->chartWidget->chart()->axisY())->min()),
                             QPointF(x,static_cast<QValueAxis*>(ui->chartWidget->chart()->axisY())->max())};
@@ -364,14 +386,16 @@ void ChartTabWidget::on_setBtn_clicked() {
     auto yMin = ui->chartWidget->y_min();
     auto yMax = ui->chartWidget->y_max();
 
-    ChartSettingDialog *dlg = new ChartSettingDialog(xMin,xMax,yMin,yMax,group->variables[0].ring_buffers.capacity(),
-                                                     this);
+    int size = 0;
+    for (auto& variable : group->variables) {
+        size = variable.second.ring_buffers.capacity();
+    }
+    ChartSettingDialog *dlg = new ChartSettingDialog(xMin,xMax,yMin,yMax,size,this);
     if (dlg->exec()==QDialog::Accepted) {
         ui->chartWidget->changeDefaultX(dlg->xMin(),dlg->xMax());
         ui->chartWidget->changeDefaultY(dlg->yMin(),dlg->yMax());
         for (auto& variable : group->variables) {
             variable.second.ring_buffers.change_capacity(dlg->bufferSize());
-
         }
     }
 }
@@ -391,6 +415,8 @@ void ChartTabWidget::timerUpdate() {
     if (time > ui->chartWidget->xRange()) {
         ui->chartWidget->chart()->axisX()->setRange(time - ui->chartWidget->xRange(), time);
     }
+
+
 
 
 }

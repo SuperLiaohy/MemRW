@@ -11,7 +11,6 @@
 #include <memory>
 #include <variant>
 #include <format>
-#include "iostream"
 enum class DWARF_MODE {
     SIMPLE,
     COMPLEX
@@ -38,12 +37,10 @@ public:
                 if (node->father->father== nullptr) return name;
                 int index = 0;
                 std::string end_name = node->name;
-                std::cout <<index<<": "<<  end_name << std::endl;
 
                 while (node->father->father->father!=nullptr)  {
                     node = node->father;
                     std::string result = node->name;
-                    std::cout <<++index<<": "<< result << std::endl;
                     if (end_name[0]!='[') result += '.';
                     result += end_name;
                     end_name = result;

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>886</width>
-    <height>694</height>
+    <width>690</width>
+    <height>484</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,29 +16,51 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
     <item row="0" column="0">
-     <widget class="QTabWidget" name="chartTab">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
+     <widget class="QFrame" name="frame">
+      <property name="frameShape">
+       <enum>QFrame::Shape::StyledPanel</enum>
       </property>
-      <property name="currentIndex">
-       <number>-1</number>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Raised</enum>
       </property>
-     </widget>
-    </item>
-    <item row="1" column="0">
-     <widget class="QTabWidget" name="tableTab">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="currentIndex">
-       <number>-1</number>
-      </property>
+      <widget class="QTabWidget" name="chartTab">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>30</y>
+         <width>409</width>
+         <height>134</height>
+        </rect>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="currentIndex">
+        <number>-1</number>
+       </property>
+      </widget>
+      <widget class="QTabWidget" name="tableTab">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>180</y>
+         <width>409</width>
+         <height>203</height>
+        </rect>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="currentIndex">
+        <number>-1</number>
+       </property>
+      </widget>
      </widget>
     </item>
    </layout>
