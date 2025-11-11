@@ -171,7 +171,13 @@ void MainWindow::on_actionadd_chart_tab_triggered() {
         QMessageBox::critical(this, "MESSAGE", "You have to have at least one group no bound.", QMessageBox::Close);
         return;
     }
-    create_chart();
+
+    // create the chart dialog
+    AddChartTabDialog* dlg = new AddChartTabDialog(groups, ui->chartTab, this);
+    auto res = dlg->exec();
+    if (res == QDialog::Accepted) {
+        create_chart(dlg->chartGroup(), dlg->tabName());
+    }
 }
 
 void MainWindow::on_actionadd_table_tab_triggered() {
@@ -209,6 +215,7 @@ void MainWindow::on_actionconnect_triggered() {
             ui->statusbar->showMessage("DAPlink has been disconnected");
             return;
         }
+        // connect the link
         link = std::make_unique<DAPReader>();
         link->attach_to_target();
         link->auto_configure_ap();
@@ -307,6 +314,7 @@ void MainWindow::on_actionconnect_triggered() {
                 }
                 DAPReader::sw.ap.tar.reset();
 
+                // check the request vector whether is empty
                 if (send.empty()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     continue;
@@ -314,6 +322,7 @@ void MainWindow::on_actionconnect_triggered() {
                 receive.resize(send.size());
                 link->transfer(send, receive);
 
+                // judge the read flag
                 int flag_index = 0;
                 for (auto &addr:addrMap) {
                     while (!read_flag[flag_index])
@@ -322,7 +331,7 @@ void MainWindow::on_actionconnect_triggered() {
                     ++flag_index;
                 }
 
-
+                // analysis the data
                 auto time = std::chrono::high_resolution_clock::now();
                 for (int chart_count = chartTabCount - 1; chart_count >= 0; --chart_count) {
                     auto name = ui->chartTab->tabText(chart_count);
@@ -533,30 +542,19 @@ void MainWindow::customGroupMenuRequested(const QPoint &pos) {
 
 }
 
-void MainWindow::create_chart() {
-    // create the chart dialog
-    AddChartTabDialog* dlg = new AddChartTabDialog(groups, ui->chartTab, this);
-    auto res = dlg->exec();
-    // judge the return value
-    if (res == QDialog::Accepted) {
-        ui->chartTab->dumpObjectTree();
-        // give the group and the tabName key
-        auto& group = dlg->chartGroup();
-        const auto& tabName = dlg->tabName();
+void MainWindow::create_chart(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName) {
+    // create chartTab
+    chartTabs.emplace(tabName, new ChartTabWidget(group, nullptr));
+    auto& chartTabWidget = chartTabs[tabName];
 
-        // create chartTab
-        chartTabs.emplace(tabName, new ChartTabWidget(group, nullptr));
-        auto& chartTabWidget = chartTabs[tabName];
+    if (is_disconnect) {chartTabWidget->startBtnEnable(false);}
 
-        if (is_disconnect) {chartTabWidget->startBtnEnable(false);}
+    // create the tab base widget
+    chartTabWidget->setAttribute(Qt::WA_DeleteOnClose);
 
-        // create the tab base widget
-        chartTabWidget->setAttribute(Qt::WA_DeleteOnClose);
+    int tabIndex = ui->chartTab->addTab(chartTabWidget, tabName);
+    ui->chartTab->setCurrentIndex(tabIndex);
 
-        int tabIndex = ui->chartTab->addTab(chartTabWidget, tabName);
-        ui->chartTab->setCurrentIndex(tabIndex);
-
-    }
 }
 
 void MainWindow::delete_chart(const QString& tabName) {

@@ -50,6 +50,7 @@ private:
     std::shared_ptr<GroupTreeWidget::Group> group;
     QList<QLineSeries *> series_list;
     QScatterSeries* scatterSeries;
+    QScatterSeries* tipsPoint;
     QLineSeries* dashLine;
     QLabel* tips;
 
@@ -60,7 +61,11 @@ private:
     uint32_t last_time;
     int freq = 0;
 
+    void updateTipPoint();
+    void legend_reset();
     int findClosestPointIndex(const QVector<QPointF>& points, double x, double error);
+    int findLeftBound(const QVector<QPointF> &points, qreal xMin);
+    int findRightBound(const QVector<QPointF> &points, qreal xMax);
 
 };
 

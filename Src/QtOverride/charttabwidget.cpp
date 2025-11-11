@@ -40,6 +40,7 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     ui->setupUi(this);
 
     scatterSeries = new QScatterSeries(this);
+    tipsPoint = new QScatterSeries(this);
     dashLine = new QLineSeries(this);
     tips = new QLabel(this);
     tips->setFrameStyle(QFrame::StyledPanel);
@@ -51,12 +52,18 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
     pen.setWidth(2);
     dashLine->setPen(pen);
 
-    scatterSeries->setMarkerSize(7.0);
+    scatterSeries->setMarkerSize(10.0);
     ui->chartWidget->addSeriesLine(scatterSeries);
+
+    tipsPoint->setMarkerSize(5.0);
+    tipsPoint->setColor(Qt::black);
+    ui->chartWidget->addSeriesLine(tipsPoint);
+
     ui->chartWidget->addSeriesLine(dashLine);
 
     ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
     ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
+    ui->chartWidget->chart()->legend()->markers()[2]->setVisible(false);
 
     QStringList show_mode;
     show_mode.append("only lines");
@@ -67,21 +74,23 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
 
     connect(ui->showBox, &QComboBox::currentIndexChanged, this, [this](int index){
         if (index == 0) {
+            tipsPoint->setPointsVisible(false);
+            tipsPoint->setPointLabelsVisible(false);
             for (auto series: series_list) {
                 series->setPointsVisible(false);
                 series->setPointLabelsVisible(false);
             }
+
         } else if (index==1) {
-            for (auto series: series_list) {
-                series->setPointsVisible(true);
-                series->setPointLabelsVisible(false);
-            }
+            tipsPoint->setPointsVisible(true);
+            tipsPoint->setPointLabelsVisible(false);
+            updateTipPoint();
         } else if (index==2) {
-            for (auto series: series_list) {
-                series->setPointsVisible(true);
-                series->setPointLabelsFormat("(@xPoint, @yPoint)");
-                series->setPointLabelsVisible(true);
-            }
+            auto series = tipsPoint;
+            series->setPointsVisible(true);
+            series->setPointLabelsFormat("(@xPoint, @yPoint)");
+            series->setPointLabelsVisible(true);
+            updateTipPoint();
         }
     });
 
@@ -105,59 +114,19 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
 
     ui->chartWidget->chart()->legend()->setInteractive(true);
     LegendFilter* filter = new LegendFilter(ui->chartWidget->chart()->scene());
-    // 还需要为图表背景安装过滤器
+    // to avoid the double-clicked event
     ui->chartWidget->chart()->scene()->installEventFilter(filter);
 
-    for (auto&mark:ui->chartWidget->chart()->legend()->markers()) {
-        connect(mark,&QLegendMarker::clicked,this,[this](){
-            // 将发送者强制转换为 QLegendMarker 类型
-            QLegendMarker* marker = qobject_cast<QLegendMarker*>(sender());
+    legend_reset();
 
-            // 检查标记的类型
-            switch (marker->type())
-            {
-                case QLegendMarker::LegendMarkerTypeXY:
-                {
-                    // 切换数据系列的可见性
-                    marker->series()->setVisible(!marker->series()->isVisible());
+    QTimer* DebounceTimer = new QTimer(this);
+    DebounceTimer->setSingleShot(true);
 
-                    // 设置标记可见
-                    marker->setVisible(true);
+    connect(static_cast<QValueAxis*>(chartWidget()->chart()->axisX()), &QValueAxis::rangeChanged, this, [DebounceTimer]() {DebounceTimer->start(20);});
+    connect(static_cast<QValueAxis*>(chartWidget()->chart()->axisY()), &QValueAxis::rangeChanged, this, [DebounceTimer]() {DebounceTimer->start(20);});
 
-                    // 根据数据系列的可见性设置标记的透明度
-                    qreal alpha = 1.0;
-                    if (!marker->series()->isVisible())
-                        alpha = 0.5;
+    connect(DebounceTimer, &QTimer::timeout, this, &ChartTabWidget::updateTipPoint);
 
-                    // 调整标记的标签刷颜色透明度
-                    QColor color;
-                    QBrush brush = marker->labelBrush();
-                    color = brush.color();
-                    color.setAlphaF(alpha);
-                    brush.setColor(color);
-                    marker->setLabelBrush(brush);
-
-                    // 调整标记的刷颜色透明度
-                    brush = marker->brush();
-                    color = brush.color();
-                    color.setAlphaF(alpha);
-                    brush.setColor(color);
-                    marker->setBrush(brush);
-
-                    // 调整标记的画笔颜色透明度
-                    QPen pen = marker->pen();
-                    color = pen.color();
-                    color.setAlphaF(alpha);
-                    pen.setColor(color);
-                    marker->setPen(pen);
-                    break;
-                }
-                default:
-                    break;
-            }
-        });
-    }
-    
     auto tipTimer = new QTimer(this);
     connect(ui->tipLineBox, &QCheckBox::stateChanged,tipTimer,[this,tipTimer](int state){
         if (state==Qt::Checked) {
@@ -166,6 +135,8 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
             tips->show();
             ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
             ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
+            ui->chartWidget->chart()->legend()->markers()[2]->setVisible(false);
+
             tipTimer->start(10);
         } else if (state==Qt::Unchecked) {
             scatterSeries->hide();
@@ -173,6 +144,7 @@ ChartTabWidget::ChartTabWidget(const std::shared_ptr<GroupTreeWidget::Group>& gr
             tips->hide();
             ui->chartWidget->chart()->legend()->markers()[0]->setVisible(false);
             ui->chartWidget->chart()->legend()->markers()[1]->setVisible(false);
+            ui->chartWidget->chart()->legend()->markers()[2]->setVisible(false);
             tipTimer->stop();
         }
     });
@@ -295,58 +267,7 @@ void ChartTabWidget::on_startBtn_clicked() {
         ++index;
     }
 
-    ui->chartWidget->chart()->legend()->setInteractive(true);
-    ui->chartWidget->chart()->legend()->setAlignment(Qt::AlignTop);
-    for (auto&mark:ui->chartWidget->chart()->legend()->markers()) {
-        connect(mark,&QLegendMarker::clicked,this,[this](){
-            // 将发送者强制转换为 QLegendMarker 类型
-            QLegendMarker* marker = qobject_cast<QLegendMarker*>(sender());
-            if (marker== nullptr) {return ;}
-            // 检查标记的类型
-            switch (marker->type())
-            {
-                case QLegendMarker::LegendMarkerTypeXY:
-                {
-                    // 切换数据系列的可见性
-                    marker->series()->setVisible(!marker->series()->isVisible());
-
-                    // 设置标记可见
-                    marker->setVisible(true);
-
-                    // 根据数据系列的可见性设置标记的透明度
-                    qreal alpha = 1.0;
-                    if (!marker->series()->isVisible())
-                        alpha = 0.5;
-
-                    // 调整标记的标签刷颜色透明度
-                    QColor color;
-                    QBrush brush = marker->labelBrush();
-                    color = brush.color();
-                    color.setAlphaF(alpha);
-                    brush.setColor(color);
-                    marker->setLabelBrush(brush);
-
-                    // 调整标记的刷颜色透明度
-                    brush = marker->brush();
-                    color = brush.color();
-                    color.setAlphaF(alpha);
-                    brush.setColor(color);
-                    marker->setBrush(brush);
-
-                    // 调整标记的画笔颜色透明度
-                    QPen pen = marker->pen();
-                    color = pen.color();
-                    color.setAlphaF(alpha);
-                    pen.setColor(color);
-                    marker->setPen(pen);
-                    break;
-                }
-                default:
-                    break;
-            }
-        });
-    }
-
+    legend_reset();
 
     if (islog) writeCsv({csv_header});
     ui->showBox->setEnabled(false);
@@ -404,21 +325,15 @@ void ChartTabWidget::on_setBtn_clicked() {
 void ChartTabWidget::timerUpdate() {
     for (auto series : series_list) {
         auto &ringbuffer = group->variables.at(series->name()).ring_buffers;
-//        if (ringbuffer.is_full())
-//            series->replace(ringbuffer.get_container());
-//        else
-            series->replace(ringbuffer.get_valid_container());
+        series->replace(ringbuffer.get_valid_container());
     }
+
+    // flush with time
     auto time = std::chrono::duration_cast<std::chrono::microseconds>(
             (std::chrono::high_resolution_clock::now() - start_time)).count() / 1000.f;
-    // 自动滚动视图
     if (time > ui->chartWidget->xRange()) {
         ui->chartWidget->chart()->axisX()->setRange(time - ui->chartWidget->xRange(), time);
     }
-
-
-
-
 }
 
 void ChartTabWidget::writeCsv(const QList<QStringList> &data) {
@@ -432,7 +347,104 @@ void ChartTabWidget::startBtnEnable(bool able) {
     ui->startBtn->setEnabled(able);
 }
 
-// 假设points已按x坐标升序排序
+// 更新可视区域内的点标签
+void ChartTabWidget::updateTipPoint() {
+    if (ui->showBox->currentIndex() == 0) {return;}
+    QValueAxis *axisX = qobject_cast<QValueAxis*>(chartWidget()->chart()->axes(Qt::Horizontal).first());
+    QValueAxis *axisY = qobject_cast<QValueAxis*>(chartWidget()->chart()->axes(Qt::Vertical).first());
+
+    if (!axisX || !axisY) return;
+
+    qreal xMin = axisX->min();
+    qreal xMax = axisX->max();
+    qreal yMin = axisY->min();
+    qreal yMax = axisY->max();
+
+    // 遍历所有折线系列和对应的散点系列
+    QList<QPointF> tip_points;
+    tip_points.reserve(8192);
+    for (int i = 0; i < series_list.size(); ++i) {
+        QLineSeries *lineSeries = series_list[i];
+
+        const QVector<QPointF> points = lineSeries->pointsVector();
+        if (points.isEmpty()) continue;
+
+        // 使用二分查找找到可视区域的边界索引
+        int leftIndex = findLeftBound(points, xMin);
+        int rightIndex = findRightBound(points, xMax);
+
+        // 如果没有点在范围内，跳过
+        if (leftIndex > rightIndex || leftIndex >= points.size() || rightIndex < 0) {
+            continue;
+        }
+
+        // 添加可视区域内的点到散点系列
+        for (int j = leftIndex; j <= rightIndex; ++j) {
+            QPointF point = points[j];
+            // 额外检查 y 坐标是否在范围内
+            if (point.y() >= yMin && point.y() <= yMax) {
+                tip_points.push_back(point);
+            }
+        }
+    }
+    tipsPoint->replace(tip_points);
+}
+
+
+void ChartTabWidget::legend_reset() {
+    ui->chartWidget->chart()->legend()->setInteractive(true);
+    ui->chartWidget->chart()->legend()->setAlignment(Qt::AlignTop);
+    for (auto&mark:ui->chartWidget->chart()->legend()->markers()) {
+        connect(mark,&QLegendMarker::clicked,this,[this](){
+            // 将发送者强制转换为 QLegendMarker 类型
+            QLegendMarker* marker = qobject_cast<QLegendMarker*>(sender());
+            if (marker== nullptr) {return ;}
+            // 检查标记的类型
+            switch (marker->type())
+            {
+                case QLegendMarker::LegendMarkerTypeXY:
+                {
+                    // 切换数据系列的可见性
+                    marker->series()->setVisible(!marker->series()->isVisible());
+
+                    // 设置标记可见
+                    marker->setVisible(true);
+
+                    // 根据数据系列的可见性设置标记的透明度
+                    qreal alpha = 1.0;
+                    if (!marker->series()->isVisible())
+                        alpha = 0.5;
+
+                    // 调整标记的标签刷颜色透明度
+                    QColor color;
+                    QBrush brush = marker->labelBrush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setLabelBrush(brush);
+
+                    // 调整标记的刷颜色透明度
+                    brush = marker->brush();
+                    color = brush.color();
+                    color.setAlphaF(alpha);
+                    brush.setColor(color);
+                    marker->setBrush(brush);
+
+                    // 调整标记的画笔颜色透明度
+                    QPen pen = marker->pen();
+                    color = pen.color();
+                    color.setAlphaF(alpha);
+                    pen.setColor(color);
+                    marker->setPen(pen);
+                    break;
+                }
+                default:
+                    break;
+            }
+        });
+    }
+}
+
 int ChartTabWidget::findClosestPointIndex(const QVector<QPointF>& points, double x, double error) {
     // 特殊情况处理
     if (points.isEmpty())
@@ -472,3 +484,35 @@ int ChartTabWidget::findClosestPointIndex(const QVector<QPointF>& points, double
     // 返回更接近x的点的索引
     return (fabs(points[left].x() - x) < fabs(points[right].x() - x)) ? left : right;
 }
+// 二分查找找到第一个 >= xMin 的点的索引
+int ChartTabWidget::findLeftBound(const QVector<QPointF> &points, qreal xMin) {
+    int left = 0, right = points.size() - 1;
+    int result = points.size();
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (points[mid].x() >= xMin) {
+            result = mid;
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+    return result;
+}
+
+// 二分查找找到最后一个 <= xMax 的点的索引
+int ChartTabWidget::findRightBound(const QVector<QPointF> &points, qreal xMax) {
+    int left = 0, right = points.size() - 1;
+    int result = -1;
+    while (left <= right) {
+        int mid = left + (right - left) / 2;
+        if (points[mid].x() <= xMax) {
+            result = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return result;
+}
+

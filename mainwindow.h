@@ -51,7 +51,7 @@ public slots:
     void customGroupMenuRequested(const QPoint& pos);
 public:
 private:
-    void create_chart();
+    void create_chart(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName);
     void delete_chart(const QString& tabName);
 
     void create_table(const std::shared_ptr<GroupTreeWidget::Group>& group, const QString &tabName);
